@@ -1,0 +1,14 @@
+services:
+  relay:
+    image: bluenviron/mediamtx:1.20.1
+    container_name: intelbras-tv-relay
+    restart: unless-stopped
+    ports:
+      - "8888:8888"
+      # Snapshot capture consumes MediaMTX RTSP only through Linux loopback.
+      - "127.0.0.1:8554:8554"
+      # Keep MediaMTX administration and metrics on the Linux bridge only.
+      - "127.0.0.1:9997:9997"
+      - "127.0.0.1:9998:9998"
+    volumes:
+      - ./runtime/mediamtx.yml:/mediamtx.yml:ro

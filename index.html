@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#090c0d" />
+    <meta name="viewer-build" content="adaptive-production" />
+    <title>Monitor residencial</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        background: #090c0d;
+      }
+      html,
+      body {
+        min-width: 320px;
+        min-height: 100%;
+        margin: 0;
+        background: #090c0d;
+      }
+      .boot-shell {
+        box-sizing: border-box;
+        min-height: 100vh;
+        padding: 12vh 8vw;
+        color: #eff2e9;
+        font:
+          16px/1.5 Arial,
+          sans-serif;
+        background: #090c0d;
+      }
+      .boot-shell__mark {
+        display: inline-grid;
+        width: 46px;
+        height: 46px;
+        place-items: center;
+        border: 1px solid #e5b74c;
+        color: #e5b74c;
+        font-weight: bold;
+      }
+      .boot-shell h1 {
+        margin: 28px 0 8px;
+        color: #e5b74c;
+        font-size: clamp(24px, 5vw, 54px);
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      .boot-shell p {
+        max-width: 42rem;
+        color: #aeb7b1;
+      }
+      .boot-shell__error {
+        display: none;
+        margin-top: 28px;
+        padding: 16px;
+        border: 1px solid #e3695f;
+        color: #f3b4ad;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root">
+      <div class="boot-shell" role="status" aria-live="polite">
+        <span class="boot-shell__mark">IV</span>
+        <h1>Monitor residencial</h1>
+        <p>Carregando o painel de câmeras…</p>
+        <p class="boot-shell__error" id="boot-error">
+          O navegador da TV não conseguiu iniciar o painel. Verifique se está usando o endereço de
+          produção da rede local e atualize a TV.
+        </p>
+      </div>
+    </div>
+    <script>
+      (function () {
+        var startedAt = Date.now();
+        var timer = setTimeout(function () {
+          if (window.__viewerMounted) return;
+          var message = document.getElementById("boot-error");
+          if (message) {
+            message.style.display = "block";
+            message.setAttribute("role", "alert");
+          }
+          var root = document.getElementById("root");
+          if (root)
+            root.setAttribute("data-boot-diagnostic", "timeout-" + String(Date.now() - startedAt));
+        }, 20000);
+      })();
+    </script>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

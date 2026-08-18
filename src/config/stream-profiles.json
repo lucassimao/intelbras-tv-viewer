@@ -1,0 +1,16 @@
+[
+  {
+    "id": "sub",
+    "subtype": 1,
+    "pathSuffix": "",
+    "labelKey": "streamProfiles.dataSaver.label",
+    "descriptionKey": "streamProfiles.dataSaver.description"
+  },
+  {
+    "id": "main",
+    "subtype": 0,
+    "pathSuffix": "--main",
+    "labelKey": "streamProfiles.high.label",
+    "descriptionKey": "streamProfiles.high.description"
+  }
+]

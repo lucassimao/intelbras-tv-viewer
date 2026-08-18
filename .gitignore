@@ -1,0 +1,56 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules/
+dist/
+dist-ssr
+*.local
+
+# Environment files: commit only the placeholder template.
+.env*
+!.env.example
+
+# Local credentials, generated relay configuration, SQLite state, and caches.
+runtime/
+secrets/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+snapshots/
+snapshot-cache/
+runtime/snapshots/
+runtime/snapshot-cache/
+
+# Test, browser, agent, and generated artifacts.
+coverage/
+artifacts/
+.agent-browser/
+browser-artifacts/
+claude-artifacts/
+*.tmp
+*.temp
+*.swp
+
+# Credential notes and local exports.
+/intelbras.txt
+**/camera-password.txt
+**/credentials.local.*
+*.credentials.local
+*secret*
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

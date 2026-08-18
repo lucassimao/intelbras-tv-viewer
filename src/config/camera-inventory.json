@@ -1,0 +1,113 @@
+[
+  {
+    "id": "cam-114",
+    "ip": "192.168.0.114",
+    "streamPath": "cam-114",
+    "shortcut": "1",
+    "model": "iM5-SC",
+    "isDefault": false,
+    "availability": "available"
+  },
+  {
+    "id": "cam-115",
+    "ip": "192.168.0.115",
+    "streamPath": "cam-115",
+    "shortcut": "2",
+    "model": "iM5-SC",
+    "isDefault": false,
+    "availability": "available"
+  },
+  {
+    "id": "cam-116",
+    "ip": "192.168.0.116",
+    "streamPath": "cam-116",
+    "shortcut": "3",
+    "model": null,
+    "isDefault": false,
+    "availability": "available"
+  },
+  {
+    "id": "cam-121",
+    "ip": "192.168.0.121",
+    "streamPath": "cam-121",
+    "shortcut": "4",
+    "model": "iM7-FC",
+    "isDefault": false,
+    "availability": "available"
+  },
+  {
+    "id": "cam-122",
+    "ip": "192.168.0.122",
+    "streamPath": "cam-122",
+    "shortcut": "5",
+    "model": "iM7-FC",
+    "isDefault": false,
+    "availability": "available",
+    "ptz": {
+      "directions": true
+    }
+  },
+  {
+    "id": "cam-123",
+    "ip": "192.168.0.123",
+    "streamPath": "cam-123",
+    "shortcut": "6",
+    "model": "iM5-SC",
+    "isDefault": false,
+    "availability": "available"
+  },
+  {
+    "id": "cam-124",
+    "ip": "192.168.0.124",
+    "streamPath": "cam-124",
+    "shortcut": "7",
+    "model": "iM7-FC",
+    "isDefault": true,
+    "availability": "available"
+  },
+  {
+    "id": "cam-125",
+    "ip": "192.168.0.125",
+    "streamPath": "cam-125",
+    "shortcut": "8",
+    "model": "iM7-FC",
+    "isDefault": false,
+    "availability": "available"
+  },
+  {
+    "id": "cam-126",
+    "ip": "192.168.0.126",
+    "streamPath": "cam-126",
+    "shortcut": "9",
+    "model": "iME-360-C",
+    "isDefault": false,
+    "availability": "available"
+  },
+  {
+    "id": "cam-127",
+    "ip": "192.168.0.127",
+    "streamPath": "cam-127",
+    "shortcut": "10",
+    "model": "iM5-SC",
+    "isDefault": false,
+    "availability": "available"
+  },
+  {
+    "id": "cam-129",
+    "ip": "192.168.0.129",
+    "streamPath": "cam-129",
+    "shortcut": "11",
+    "model": "iM5-SC",
+    "isDefault": false,
+    "availability": "available"
+  },
+  {
+    "id": "cam-135",
+    "ip": "192.168.0.135",
+    "streamPath": "cam-135",
+    "shortcut": "12",
+    "model": "iME-360-C",
+    "isDefault": false,
+    "availability": "available"
+  }
+]

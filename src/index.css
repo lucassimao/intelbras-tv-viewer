@@ -1,0 +1,80 @@
+:root {
+  --background: #090c0d;
+  --panel: #111617;
+  --panel-active: #19201f;
+  --line: #283032;
+  --line-strong: #4c5758;
+  --ink: #eff2e9;
+  --ink-muted: #8b9693;
+  --signal: #e5b74c;
+  --live: #54d593;
+  --warning: #e5b74c;
+  --danger: #e3695f;
+  --font-display: "Arial Narrow", "Liberation Sans Narrow", "Nimbus Sans Narrow", sans-serif;
+  --font-body: "Avenir Next", Avenir, "Trebuchet MS", sans-serif;
+  --font-mono: "DejaVu Sans Mono", "Lucida Console", monospace;
+
+  color: var(--ink);
+  background: var(--background);
+  font-family: var(--font-body);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-width: 320px;
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  overflow-x: hidden;
+  background:
+    radial-gradient(circle at 18% 5%, rgba(229, 183, 76, 0.07), transparent 26%),
+    linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px), var(--background);
+  background-size:
+    auto,
+    34px 34px,
+    34px 34px,
+    auto;
+}
+
+button {
+  font-family: inherit;
+  min-block-size: 44px;
+  touch-action: manipulation;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+:focus-visible {
+  outline: 3px solid var(--signal);
+  outline-offset: 3px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
