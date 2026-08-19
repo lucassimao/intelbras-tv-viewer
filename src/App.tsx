@@ -244,13 +244,11 @@ export function Viewer({
   profile,
   customNames,
   onSelectProfile,
-  onRename,
 }: {
   camera: Camera;
   profile: StreamProfile;
   customNames: CameraNames;
   onSelectProfile: (profileId: StreamProfile["id"]) => void;
-  onRename: () => void;
 }) {
   const { t } = useTranslation();
   const viewerRef = useRef<HTMLElement>(null);
@@ -375,9 +373,6 @@ export function Viewer({
         <button type="button" className="fullscreen-button" onClick={requestFullscreen}>
           {t("viewer.fullscreen")}
         </button>
-        <button type="button" className="fullscreen-button" onClick={onRename}>
-          {t("camera.rename")}
-        </button>
       </div>
     </section>
   );
@@ -460,14 +455,12 @@ function GlanceWall({
   customNames,
   onSelectCamera,
   onSelectProfile,
-  onRename,
 }: {
   camera: Camera;
   profile: StreamProfile;
   customNames: CameraNames;
   onSelectCamera: (cameraId: string) => void;
   onSelectProfile: (profileId: StreamProfile["id"]) => void;
-  onRename: () => void;
 }) {
   const { t } = useTranslation();
   const priorityCameraIds = useMemo(
@@ -500,7 +493,6 @@ function GlanceWall({
           profile={profile}
           customNames={customNames}
           onSelectProfile={onSelectProfile}
-          onRename={onRename}
         />
       </div>
       <aside className="glance-wall__catalog" aria-label={t("glance.catalogLabel")}>
@@ -679,9 +671,18 @@ export function CameraCatalog({
                 type="button"
                 className="camera-card__rename"
                 aria-label={t("camera.renameDialogTitle", { camera: name })}
+                title={t("camera.renameDialogTitle", { camera: name })}
                 onClick={() => onRename(camera)}
               >
-                {t("camera.rename")}
+                <svg
+                  className="camera-card__rename-icon"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path d="M4 20h4L19.5 8.5a2.12 2.12 0 0 0-3-3L5 17v3Z" />
+                  <path d="m14.5 7.5 2 2" />
+                </svg>
               </button>
             </div>
           );
@@ -1035,7 +1036,7 @@ function App() {
     : undefined;
 
   return (
-    <main className="console-shell">
+    <main className={`console-shell${viewMode === "glance" ? " console-shell--glance" : ""}`}>
       <header className="masthead">
         <div className="brand">
           <div>
@@ -1077,7 +1078,6 @@ function App() {
           customNames={customNames}
           onSelectCamera={selectCamera}
           onSelectProfile={(profileId) => selectProfile(activeCamera, profileId)}
-          onRename={() => openRename(activeCamera.id)}
         />
       ) : (
         <Viewer
@@ -1085,7 +1085,6 @@ function App() {
           profile={activeProfile}
           customNames={customNames}
           onSelectProfile={(profileId) => selectProfile(activeCamera, profileId)}
-          onRename={() => openRename(activeCamera.id)}
         />
       )}
 

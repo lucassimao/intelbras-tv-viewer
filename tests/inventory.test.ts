@@ -94,14 +94,17 @@ describe("shared camera inventory", () => {
     const directory = await mkdtemp(join(tmpdir(), "intelbras-relay-test-"));
     const outputFile = join(directory, "mediamtx.yml");
     try {
-      await execFileAsync(process.execPath, ["scripts/generate-mediamtx-config.mjs"], {
-        cwd: process.cwd(),
-        env: {
-          ...process.env,
-          CAMERA_PASSWORD: "test-password",
-          MEDIAMTX_OUTPUT_FILE: outputFile,
+      await execFileAsync(
+        process.execPath,
+        ["scripts/generate-mediamtx-config.mjs", "--output", outputFile],
+        {
+          cwd: process.cwd(),
+          env: {
+            ...process.env,
+            CAMERA_PASSWORD: "test-password",
+          },
         },
-      });
+      );
       const generated = await readFile(outputFile, "utf8");
       const paths = [...generated.matchAll(/^  (cam-[^:]+):$/gm)].map((match) => match[1]);
       expect(paths).toHaveLength(24);

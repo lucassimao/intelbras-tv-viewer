@@ -1,14 +1,131 @@
 services:
-  relay:
+  relay-config:
+    build:
+      context: .
+      target: runtime
+    image: intelbras-tv-viewer:init
+    container_name: intelbras-tv-relay-config
+    restart: "no"
+    # The fresh named volume is created root-owned by Docker. This one-shot
+    # writer needs root only to create the 0600 config; the app remains node.
+    user: "0:0"
+    environment:
+      CAMERA_USERNAME: ${CAMERA_USERNAME:-admin}
+      CAMERA_PASSWORD: ${CAMERA_PASSWORD:?Set CAMERA_PASSWORD in .env}
+      MEDIAMTX_OUTPUT_FILE: /relay-config/mediamtx.yml
+    volumes:
+      - relay_config:/relay-config
+    command: ["node", "scripts/generate-mediamtx-config.mjs"]
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  mediamtx:
     image: bluenviron/mediamtx:1.20.1
     container_name: intelbras-tv-relay
     restart: unless-stopped
-    ports:
-      - "8888:8888"
-      # Snapshot capture consumes MediaMTX RTSP only through Linux loopback.
-      - "127.0.0.1:8554:8554"
-      # Keep MediaMTX administration and metrics on the Linux bridge only.
-      - "127.0.0.1:9997:9997"
-      - "127.0.0.1:9998:9998"
+    init: true
+    depends_on:
+      relay-config:
+        condition: service_completed_successfully
+    command: ["/relay-config/mediamtx.yml"]
     volumes:
-      - ./runtime/mediamtx.yml:/mediamtx.yml:ro
+      - relay_config:/relay-config:ro
+    ports:
+      - "0.0.0.0:8888:8888"
+    expose:
+      - "8554"
+      - "9997"
+      - "9998"
+    healthcheck:
+      # The pinned MediaMTX image is distroless and has no shell/curl. Its
+      # version command is a reliable process-level health check.
+      test: ["CMD", "/mediamtx", "--version"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 5s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp
+    stop_grace_period: 20s
+
+  app:
+    build:
+      context: .
+      target: runtime
+      secrets:
+        - faro_source_map_api_key
+      args:
+        VITE_FARO_URL: ${VITE_FARO_URL:-}
+        VITE_FARO_APP_KEY: ${VITE_FARO_APP_KEY:-}
+        VITE_FARO_APP_NAME: ${VITE_FARO_APP_NAME:-intelbras-tv-viewer}
+        VITE_FARO_ENVIRONMENT: ${VITE_FARO_ENVIRONMENT:-production}
+        VITE_APP_VERSION: ${VITE_APP_VERSION:-0.0.0}
+    image: intelbras-tv-viewer:local
+    container_name: intelbras-tv-app
+    restart: unless-stopped
+    init: true
+    depends_on:
+      mediamtx:
+        condition: service_healthy
+    environment:
+      CAMERA_USERNAME: ${CAMERA_USERNAME:-admin}
+      CAMERA_PASSWORD: ${CAMERA_PASSWORD:?Set CAMERA_PASSWORD in .env}
+      CAMERA_API_HOST: 127.0.0.1
+      CAMERA_API_PORT: 8787
+      CAMERA_DB_PATH: /app/runtime/cameras.sqlite
+      MEDIAMTX_API_URL: http://mediamtx:9997
+      MEDIAMTX_METRICS_URL: http://mediamtx:9998/metrics
+      SNAPSHOT_RTSP_ORIGIN: rtsp://mediamtx:8554
+      SNAPSHOT_FFMPEG: ffmpeg
+      TV_HOST: 0.0.0.0
+      TV_PORT: 8080
+    volumes:
+      - app_runtime:/app/runtime
+      # Read-only migration source for installations that already have
+      # runtime/cameras.sqlite. It is never copied into the image.
+      - ./runtime:/legacy-runtime:ro
+    ports:
+      - "0.0.0.0:8080:8080"
+    expose:
+      - "8787"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:8080/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp
+    stop_grace_period: 20s
+
+volumes:
+  app_runtime:
+    name: intelbras-tv-viewer-runtime
+  relay_config:
+    name: intelbras-tv-viewer-relay-config
+
+networks:
+  default:
+    name: intelbras-tv-viewer-network
+
+secrets:
+  faro_source_map_api_key:
+    environment: FARO_SOURCE_MAP_API_KEY

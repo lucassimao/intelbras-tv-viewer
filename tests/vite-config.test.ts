@@ -16,12 +16,16 @@ describe("Vite Faro source-map upload configuration", () => {
 
   it("configures private upload defaults only for keyed builds", () => {
     const options = sourceMapUploadOptions(
-      { FARO_SOURCE_MAP_API_KEY: "server-only-token", FARO_SOURCE_MAP_VERBOSE: "false" },
+      {
+        FARO_SOURCE_MAP_API_KEY: "server-only-token",
+        FARO_SOURCEMAP_APP_NAME: "configured-viewer",
+        FARO_SOURCE_MAP_VERBOSE: "false",
+      },
       "build",
     );
 
     expect(options).toMatchObject({
-      appName: "intelbras-tv-viewer",
+      appName: "configured-viewer",
       endpoint: "https://faro-api-prod-sa-east-1.grafana.net/faro/api/v1",
       appId: "1413",
       stackId: "1798618",

@@ -2,8 +2,18 @@ import { chmod, mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 
 const projectRoot = resolve(import.meta.dirname, "..");
+const outputArgument = process.argv.find((argument) => argument.startsWith("--output="));
+const outputIndex = process.argv.indexOf("--output");
+const outputFromArgs =
+  outputArgument?.slice("--output=".length) ??
+  (outputIndex >= 0 ? process.argv[outputIndex + 1] : undefined);
+if ((outputIndex >= 0 || outputArgument) && !outputFromArgs) {
+  throw new Error("--output requires a file path");
+}
 const outputFile = resolve(
-  process.env.MEDIAMTX_OUTPUT_FILE ?? resolve(projectRoot, "runtime/mediamtx.yml"),
+  outputFromArgs ??
+    process.env.MEDIAMTX_OUTPUT_FILE ??
+    resolve(projectRoot, "runtime/mediamtx.yml"),
 );
 const username = process.env.CAMERA_USERNAME ?? "admin";
 const password = process.env.CAMERA_PASSWORD;

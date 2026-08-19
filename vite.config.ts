@@ -10,7 +10,7 @@ export function sourceMapUploadOptions(env: BuildEnv, command: string) {
   if (command !== "build" || !apiKey) return null;
 
   return {
-    appName: env.FARO_SOURCE_MAP_APP_NAME?.trim() || "intelbras-tv-viewer",
+    appName: env.FARO_SOURCEMAP_APP_NAME?.trim() || "intelbras-tv-viewer",
     endpoint:
       env.FARO_SOURCEMAP_ENDPOINT?.trim() ||
       "https://faro-api-prod-sa-east-1.grafana.net/faro/api/v1",

@@ -45,7 +45,89 @@ concern. [`server/index.ts`](server/index.ts) wires production dependencies and
 lifecycle. There is no separate `server/camera-credentials.ts`; credential
 loading is part of the central server configuration.
 
-## Quick start
+## Quick start (Docker recomendado)
+
+O caminho recomendado para disponibilizar o viewer nas TVs é o Compose. Separe
+o build (que publica os source maps privados) do start (que usa somente as
+imagens locais já construídas):
+
+```bash
+cp .env.example .env
+chmod 600 .env
+# Edite .env e defina CAMERA_PASSWORD e FARO_SOURCE_MAP_API_KEY.
+pnpm docker:build
+pnpm docker:up
+docker compose ps
+```
+
+Abra `http://<BRIDGE_IP>:8080` na TV ou no celular. O HLS fica em
+`http://<BRIDGE_IP>:8888`; apenas essas duas portas são publicadas na LAN.
+`8787`, `8554`, `9997` e `9998` ficam somente dentro da rede Docker.
+Essa rede bridge não usa a flag Docker `internal`, pois o relay precisa abrir
+RTSP para os IPs das câmeras na LAN; isso não publica nenhuma porta adicional
+no host.
+
+O Compose recebe `CAMERA_PASSWORD` como variável de runtime para manter a
+configuração `.env` simples. Isso significa que a senha pode aparecer no
+ambiente do container para quem tem acesso local ao Docker (`docker inspect`);
+ela não entra no build, no bundle, no Git ou nos logs da aplicação. A chave
+`FARO_SOURCE_MAP_API_KEY` é montada somente como secret efêmero do BuildKit
+durante o build Docker; ela não vira `ARG`, `ENV`, layer ou arquivo da imagem.
+`pnpm docker:build` falha antes de chamar o Docker se
+`FARO_SOURCE_MAP_API_KEY` estiver ausente ou vazia. Ele constrói
+sequencialmente as imagens locais `intelbras-tv-viewer:local` (app) e
+`intelbras-tv-viewer:init` (relay-config). Um nonce não secreto muda a camada
+de build/upload a cada execução, portanto uma chave rotacionada nunca fica
+silenciosamente atrás do cache; a instalação de dependências continua
+cacheável. O segredo é sempre um BuildKit secret efêmero.
+
+`pnpm docker:up` valida que as duas imagens existem localmente e executa
+`docker compose up -d --no-build --pull never`: não há rebuild nem pull
+implícito. A imagem upstream pinada do MediaMTX também precisa estar disponível
+localmente; se faltar, o comando falha explicitamente. Esses são os únicos
+comandos públicos para o fluxo de containers.
+
+Atualize sem remover os dados locais:
+
+```bash
+pnpm docker:build
+pnpm docker:up
+docker compose logs -f --tail=100 app mediamtx
+docker compose down                 # preserva os volumes nomeados
+```
+
+O banco SQLite está no volume `intelbras-tv-viewer-runtime` e a configuração
+gerada, regenerável a cada inicialização, em
+`intelbras-tv-viewer-relay-config`. Faça backup antes de mover o bridge:
+
+Na primeira inicialização, se existir `runtime/cameras.sqlite` do modo local,
+o app o copia (incluindo WAL/SHM presentes) para o volume nomeado sem apagar
+o arquivo original. Inicialize o Compose depois de parar o viewer local para
+que não haja escrita concorrente durante essa migração.
+
+```bash
+docker run --rm -v intelbras-tv-viewer-runtime:/data -v "$PWD":/backup alpine \
+  tar czf /backup/intelbras-tv-viewer-runtime.tgz -C /data .
+```
+
+Arquitetura containerizada:
+
+```mermaid
+flowchart LR
+  TV["TV / celular<br/>LAN"] -->|":8080"| App["app<br/>viewer + API loopback"]
+  TV -->|":8888"| MTX["mediamtx<br/>HLS + RTSP"]
+  Init["relay-config<br/>one-shot"] -->|"volume config"| MTX
+  App -->|"Docker DNS mediamtx:9997/9998"| MTX
+  App -->|"ffmpeg via mediamtx:8554"| MTX
+  MTX -->|"RTSP :554"| Cameras["Câmeras Intelbras"]
+  App -->|"Faro opcional<br/>somente configuração pública"| Faro["Grafana Cloud"]
+```
+
+Se a TV não abrir a página, permita apenas `8080` e `8888` da sub-rede local
+no firewall do bridge. Não encaminhe essas portas para a internet e nunca
+publique API, métricas, RTSP ou portas das câmeras.
+
+## Quick start local (desenvolvimento)
 
 Requirements: Node.js 24+, pnpm 10+, Docker Compose, and a Linux bridge that
 can reach the cameras and the TV. For a first local run:
@@ -54,9 +136,14 @@ can reach the cameras and the TV. For a first local run:
 cp .env.example .env
 chmod 600 .env
 # Edit only the local, ignored .env and set CAMERA_PASSWORD.
-pnpm relay:up
+# The commands below are the development path; use the Docker quick start
+# above for the complete LAN deployment.
+pnpm relay:config
 pnpm dev
 ```
+
+Nesse fluxo o MediaMTX deve estar disponível no host conforme sua instalação
+local; para relay, API e viewer juntos use o Compose recomendado acima.
 
 Open `http://localhost:8080` on the bridge or the LAN URL printed by
 `pnpm dev` on the TV/mobile browser. For the production-compatible TV server,
@@ -164,8 +251,10 @@ API; `MEDIAMTX_API_URL` and `MEDIAMTX_METRICS_URL` point to loopback
 MediaMTX; `SNAPSHOT_FFMPEG` and `SNAPSHOT_RTSP_ORIGIN` configure local
 snapshot capture; and `TV_HOST`/`TV_PORT` configure the static TV server.
 `VITE_HLS_ORIGIN` and the `VITE_FARO_*`/`VITE_APP_VERSION` values are public
-browser settings. `FARO_SOURCE_MAP_*` values are Node/CI-only upload settings;
-the API key must never use a `VITE_` prefix.
+browser settings. `FARO_SOURCE_MAP_API_KEY`, `FARO_SOURCEMAP_ENDPOINT`,
+`FARO_SOURCEMAP_APP_NAME`, `FARO_SOURCEMAP_APP_ID`,
+`FARO_SOURCEMAP_STACK_ID` and `FARO_SOURCE_MAP_VERBOSE` are Node/CI-only
+upload settings; the API key must never use a `VITE_` prefix.
 
 ## Run Stage 1
 
@@ -293,11 +382,11 @@ checks never rewrite files.
 
 Vitest runs in jsdom for UI-facing helpers and uses isolated temporary SQLite files for API tests. It does not contact cameras or require MediaMTX; HLS playback and live relay behavior remain manual/integration checks. Coverage output is written to `artifacts/coverage/` and enforces practical thresholds for the currently testable modules.
 
-The deterministic suite currently contains 70 passing tests, including direct
+The deterministic suite currently contains 71 passing tests, including direct
 tests for the Hono app with injected dependencies, validated server config,
-repositories/services, telemetry redaction, and conditional Vite source-map
-plugin configuration. This keeps API tests independent of cameras, Docker,
-and a running relay.
+repositories/services, native Faro payload handling, and conditional Vite
+source-map plugin configuration. This keeps API tests independent of cameras,
+Docker, and a running relay.
 
 HLS streams are available only on the LAN at `http://BRIDGE_IP:8888/cam-114/index.m3u8` and equivalent paths. The main stream profile uses a distinct relay path such as `cam-114--main/index.m3u8`; the existing camera path remains the `subtype=1` default for compatibility. Each MediaMTX path is `sourceOnDemand`, so switching profiles stops the old camera source after the configured close delay and starts only the selected profile.
 
@@ -345,9 +434,10 @@ The adapter sends bounded, named events (`stream_requested`, `first_frame`,
 stall/retry/fatal HLS errors, fullscreen and camera/profile changes) and
 measurements for startup/stall duration. It does not enable session replay,
 console capture, resource timing, request/response bodies, or headers. Event
-contexts contain only logical camera/profile IDs; URL/query/IP/credential
-patterns are redacted before Faro transport. A React render error is reported
-with a bilingual recovery screen.
+contexts contain only logical camera/profile IDs, and the app intentionally
+does not add URLs, IPs, credentials, or camera names to telemetry. Faro's
+native payload is left unchanged so measurement trace context remains valid. A
+React render error is reported with a bilingual recovery screen.
 
 This SPA does not use `react-router-dom` or `createBrowserRouter`, so Faro's
 `@grafana/faro-react` router integration is intentionally not installed. Route
@@ -362,9 +452,12 @@ source map, while `dist/**/*.map` can be uploaded privately to Grafana for the
 matching release. When `FARO_SOURCE_MAP_API_KEY` is present in the Node/CI
 environment, the build enables `@grafana/faro-rollup-plugin`, uploads compressed
 maps to the configured Faro source-map endpoint, and removes them afterward
-(`keepSourcemaps: false`). Without that key, no upload is attempted; the local
-production server blocks `.map` requests even though hidden maps remain in
-`dist/` for a later private upload.
+(`keepSourcemaps: false`). The Docker Compose build supplies the key only
+through a BuildKit secret and also removes any remaining maps before copying
+`dist/` into the runtime image. The `pnpm docker:build` wrapper requires
+the key and always invalidates only the build/upload layer with a non-secret
+nonce; a plain `pnpm build` remains suitable for local builds without upload.
+The TV server returns 404 for `.map` requests.
 
 The source-map token is server-only and must never use a `VITE_` prefix or enter
 the browser bundle. Create it with Grafana Cloud access-policy scopes
@@ -376,10 +469,10 @@ and [bundler configuration reference](https://grafana.com/docs/grafana-cloud/mon
 Source-map uploads are conditional: development/preview commands and builds
 without `FARO_SOURCE_MAP_API_KEY` never invoke the uploader. A keyed build
 uses the configured app name, app ID, stack ID, and endpoint, gzips the maps,
-and removes local maps after upload. Without a key, hidden maps remain local
-to `dist/` for inspection but the TV server refuses `.map` requests. Keep
-source-map keys in CI secrets or the ignored `.env`; they are not part of the
-public repository.
+and removes local maps after upload. The explicit `pnpm docker:build`
+workflow requires the key, while the generic `pnpm build` remains optional.
+The container build removes maps from the runtime image. Keep source-map keys
+in CI secrets or the ignored `.env`; they are not part of the public repository.
 
 Validate the Faro SDK on the target LG webOS TV before enabling it broadly—the
 SDK is loaded in an asynchronous chunk and remains best-effort for legacy

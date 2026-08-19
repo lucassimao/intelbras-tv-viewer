@@ -23,9 +23,14 @@
     "check": "pnpm quality:check",
     "preview": "vite preview",
     "relay:config": "node --env-file-if-exists=.env scripts/generate-mediamtx-config.mjs",
-    "relay:up": "pnpm relay:config && docker compose up -d relay",
-    "relay:logs": "docker compose logs -f relay",
-    "relay:down": "docker compose down"
+    "relay:up": "docker compose up -d --build mediamtx",
+    "relay:logs": "docker compose logs -f mediamtx",
+    "relay:down": "docker compose down",
+    "docker:build": "node --env-file-if-exists=.env scripts/containers-build.mjs",
+    "docker:up": "node --env-file-if-exists=.env scripts/containers-up.mjs",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f --tail=100 app mediamtx",
+    "docker:status": "docker compose ps"
   },
   "dependencies": {
     "@grafana/faro-web-sdk": "^2.10.0",

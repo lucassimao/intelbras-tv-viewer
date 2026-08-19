@@ -1151,27 +1151,34 @@
 }
 
 .camera-card-row {
+  position: relative;
   display: flex;
   min-width: 0;
-  gap: 6px;
 }
 
 .camera-card-row .camera-card {
-  flex: 1 1 auto;
+  width: 100%;
+  padding-right: clamp(48px, 4vw, 62px);
 }
 
 .camera-card__rename {
-  flex: 0 0 auto;
-  align-self: stretch;
-  max-width: 82px;
-  border: 1px solid var(--line);
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  right: 5px;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line-strong);
   color: var(--muted);
   background: var(--panel);
   cursor: pointer;
-  font-family: var(--font-mono);
-  font-size: 9px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  transform: translateY(-50%);
+  transition:
+    border-color 140ms ease,
+    color 140ms ease,
+    background-color 140ms ease;
 }
 
 .camera-card__rename:hover,
@@ -1181,6 +1188,21 @@
   background: var(--panel-active);
   outline: 3px solid var(--signal);
   outline-offset: 1px;
+}
+
+.camera-card__rename:active {
+  background: var(--signal);
+  color: var(--background);
+}
+
+.camera-card__rename-icon {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
 }
 
 .camera-card:hover,
@@ -1518,10 +1540,8 @@
     overflow-wrap: anywhere;
   }
 
-  .camera-card__rename {
-    min-width: 44px;
-    max-width: 64px;
-    padding-inline: 5px;
+  .camera-card-row .camera-card {
+    padding-right: 58px;
   }
 
   .glance-wall {
@@ -2033,12 +2053,7 @@
 }
 
 .camera-card__rename {
-  width: 48px;
-  max-width: 48px;
-  padding-inline: 4px;
-  color: var(--ink-muted);
-  font-size: 8px;
-  letter-spacing: 0.025em;
+  right: 4px;
 }
 
 .camera-card--active {
@@ -2092,9 +2107,7 @@
   }
 
   .camera-card__rename {
-    width: 44px;
-    max-width: 44px;
-    font-size: 7px;
+    right: 4px;
   }
 }
 
@@ -2243,8 +2256,7 @@
   }
 
   .camera-card__rename {
-    width: 44px;
-    max-width: 44px;
+    right: 4px;
   }
 }
 
@@ -2285,29 +2297,35 @@
   bottom: clamp(52px, 5.5vw, 78px);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   max-width: calc(100% - 36px);
-  padding: 6px;
-  border: 1px solid rgba(237, 241, 231, 0.24);
-  background: linear-gradient(180deg, rgba(7, 10, 11, 0.9), rgba(7, 10, 11, 0.72));
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.34);
-  backdrop-filter: blur(10px);
+  padding: 0;
 }
 
 .stream-profile-selector__options {
   display: flex;
-  gap: 4px;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid rgba(237, 241, 231, 0.3);
+  background: rgba(7, 10, 11, 0.86);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(8px);
 }
 
 .stream-profile-option {
   position: relative;
-  min-width: 108px;
+  min-width: 96px;
   min-height: 48px;
   justify-content: center;
   gap: 8px;
   padding: 0 14px;
-  border-color: rgba(237, 241, 231, 0.3);
+  border: 0;
+  border-right: 1px solid rgba(237, 241, 231, 0.2);
   background: rgba(13, 18, 18, 0.92);
+}
+
+.stream-profile-option:last-child {
+  border-right: 0;
 }
 
 .stream-profile-option strong {
@@ -2371,17 +2389,18 @@
   .viewer__controls {
     right: 10px;
     bottom: 52px;
-    gap: 4px;
+    gap: 8px;
     max-width: calc(100% - 20px);
-    padding: 4px;
+    flex-wrap: nowrap;
+    padding: 0;
   }
 
   .stream-profile-selector__options {
-    gap: 3px;
+    gap: 0;
   }
 
   .stream-profile-option {
-    min-width: 90px;
+    min-width: 84px;
     min-height: 44px;
     padding-inline: 9px;
   }
@@ -2427,5 +2446,198 @@
 
   .viewer {
     height: min(420px, 54vh);
+  }
+}
+
+/*
+ * Adaptive console flow
+ *
+ * Keep the catalog in normal document flow. The original shell grid left its
+ * viewer row as `minmax(0, 1fr)`, which made tall desktop viewports distribute
+ * all remaining space between the live feed and the camera controls. A TV
+ * console should stay dense and scannable: the feed grows with the viewport,
+ * then the catalog follows immediately below it.
+ */
+.console-shell {
+  grid-template-rows: auto auto auto auto;
+  align-content: start;
+}
+
+@media (min-width: 901px) {
+  .viewer {
+    height: min(780px, 56vh, 56.25vw);
+    min-height: 360px;
+    aspect-ratio: 16 / 9;
+  }
+
+  .glance-wall__live .viewer {
+    height: auto;
+    min-height: 0;
+    aspect-ratio: 16 / 9;
+  }
+}
+
+@media (max-width: 900px) {
+  /* Preserve comfortable remote/touch targets after the compact TV rules. */
+  .fullscreen-button,
+  .camera-page-button,
+  .glance-wall__pagination button,
+  .ptz-pad button {
+    min-height: 44px;
+  }
+}
+
+/*
+ * Glance wall layout pass
+ *
+ * The wall is a deliberate second view, so its catalog gets enough width for
+ * names and status to remain legible from a TV. Keep a stable two-column
+ * composition on desktop and tablet, then switch to a normal-flow stack on
+ * small touch screens. These rules are intentionally conservative and sit at
+ * the end of the stylesheet so older TV parsers keep the earlier fallbacks.
+ */
+.glance-wall {
+  grid-template-columns: minmax(0, 1.45fr) minmax(420px, 0.95fr);
+  gap: clamp(12px, 1.4vw, 24px);
+  align-items: start;
+}
+
+.glance-wall__catalog {
+  padding: clamp(14px, 1.2vw, 22px);
+}
+
+.glance-wall__grid {
+  gap: clamp(10px, 0.8vw, 14px);
+  margin-top: clamp(12px, 1vw, 18px);
+}
+
+.glance-tile__copy {
+  min-height: 52px;
+}
+
+@media (min-width: 1500px) {
+  .glance-wall {
+    grid-template-columns: minmax(0, 1.4fr) minmax(560px, 0.9fr);
+  }
+}
+
+@media (min-width: 901px) and (max-width: 1199px) {
+  .glance-wall {
+    grid-template-columns: minmax(0, 1.25fr) minmax(360px, 0.95fr);
+    gap: 12px;
+  }
+
+  .glance-wall__catalog {
+    padding: 14px;
+  }
+}
+
+@media (min-width: 901px) and (max-width: 1499px) {
+  .glance-wall__grid {
+    gap: 8px;
+  }
+
+  .glance-tile__copy {
+    min-height: 40px;
+    padding: 7px 8px 8px;
+  }
+}
+
+@media (max-width: 900px) {
+  .glance-wall {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+
+  .glance-wall__catalog {
+    padding: 14px;
+  }
+}
+
+@media (max-width: 520px) {
+  .glance-wall {
+    gap: 16px;
+  }
+
+  .glance-wall__catalog {
+    padding: 12px;
+  }
+
+  .glance-wall__heading h2 {
+    font-size: clamp(22px, 7vw, 28px);
+  }
+
+  .glance-wall__count {
+    font-size: 9px;
+  }
+
+  .glance-tile__copy {
+    min-height: 52px;
+    padding: 8px;
+  }
+
+  .glance-tile__status {
+    right: 5px;
+    bottom: 5px;
+    padding: 4px 5px;
+  }
+}
+
+/* Keep the dedicated TV wall inside the viewport; touch layouts retain flow. */
+@media (min-width: 1200px) {
+  .console-shell--glance {
+    box-sizing: border-box;
+    height: 100vh;
+    height: 100dvh;
+    min-height: 100vh;
+    min-height: 100dvh;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    align-content: stretch;
+    gap: 12px;
+    padding-block: 20px;
+    overflow: hidden;
+  }
+
+  .console-shell--glance .glance-wall {
+    height: 100%;
+    min-height: 0;
+  }
+
+  .console-shell--glance .glance-wall__catalog {
+    box-sizing: border-box;
+    height: 100%;
+  }
+}
+
+@media (min-width: 1200px) and (max-width: 1499px) {
+  .console-shell--glance .glance-wall__catalog {
+    padding: 10px;
+  }
+
+  .console-shell--glance .glance-wall__grid {
+    gap: 6px;
+    margin-top: 8px;
+  }
+
+  .console-shell--glance .glance-tile__media {
+    aspect-ratio: 2 / 1;
+  }
+
+  .console-shell--glance .glance-tile__copy {
+    min-height: 34px;
+    gap: 3px;
+    padding: 4px 6px 5px;
+  }
+
+  .console-shell--glance .glance-tile__copy strong {
+    font-size: 12px;
+  }
+
+  .console-shell--glance .glance-tile__copy small {
+    font-size: 8px;
+  }
+
+  .console-shell--glance .glance-wall__pagination {
+    margin-top: 8px;
   }
 }

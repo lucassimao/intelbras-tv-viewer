@@ -16,12 +16,10 @@ vi.mock("@grafana/faro-web-tracing", () => tracing);
 import {
   initTelemetry,
   resetTelemetryForTests,
-  sanitizePlainText,
-  sanitizeUnknown,
   setTelemetryEnvForTests,
   telemetryConfig,
-  telemetryError,
   telemetryEvent,
+  telemetryMeasurement,
   telemetryPendingCountForTests,
   telemetryState,
 } from "../src/telemetry";
@@ -168,50 +166,22 @@ describe("Faro telemetry adapter", () => {
     expect(telemetryPendingCountForTests()).toBe(32);
   });
 
-  it("redacts IPv4/IPv6 variants while preserving versions and ordinary text", () => {
-    const value = sanitizePlainText(
-      "IPv4 192.168.1.10 IPv6 2001:0db8:0000:0000:0000:0000:0000:0001 compressed 2001:db8::1 link-local fe80::1%eth0 loopback ::1 bracketed [::1]:443",
-    );
-
-    expect(value).not.toMatch(/192\.168\.1\.10|2001:|fe80:|::1/);
-    expect(sanitizePlainText("version 1.2.3.4 release 2026.08.19 ordinary text")).toContain(
-      "1.2.3.4",
-    );
-    expect(sanitizePlainText("time 12:34:56 and ratio 1:2")).toBe("time 12:34:56 and ratio 1:2");
-  });
-
-  it("applies the same sanitizer to nested context values", () => {
-    const nested = sanitizeUnknown({
-      context: {
-        address: "[2001:db8::1]",
-        url: "http://192.168.1.10/a?x=1",
-        headers: { token: "abc" },
-      },
-    });
-
-    expect(nested).toEqual({ context: { address: "[redacted-ip]" } });
-  });
-
-  it("preserves the original error stack after sanitizing sensitive frames", async () => {
+  it("leaves Faro initialization and measurement payloads native", async () => {
     const faro = makeFaro();
     sdk.initializeFaro.mockReturnValue(faro);
     setTelemetryEnvForTests({ VITE_FARO_URL: "https://collector.example.invalid/collect" });
     await initTelemetry();
 
-    const source = new Error("camera failed at 192.168.1.10");
-    source.name = "PlayerError";
-    source.stack =
-      "PlayerError: camera failed at 192.168.1.10\n" +
-      "    at start (https://admin:secret@192.168.1.10:443/player.js?token=abc)\n" +
-      "    at version 1.2.3.4 (http://[2001:db8::1]/player.js?x=1)";
-    telemetryError(source, { component: "player", errorType: "startup" });
+    const options = sdk.initializeFaro.mock.calls[0][0];
+    expect(options.beforeSend).toBeUndefined();
 
-    const [safeError, options] = faro.api.pushError.mock.calls[0];
-    expect(safeError.name).toBe("PlayerError");
-    expect(safeError.stack).toContain("at start");
-    expect(safeError.stack).toContain("at version 1.2.3.4");
-    expect(safeError.stack).not.toMatch(/admin|secret|192\.168\.1\.10|2001:db8|token=abc/);
-    expect(safeError.stack).not.toContain("safeError");
-    expect(options.context).toEqual({ component: "player", errorType: "startup" });
+    telemetryMeasurement("stream_startup_ms", 120, { cameraId: "cam-124" });
+    const [measurement] = faro.api.pushMeasurement.mock.calls[0];
+    expect(measurement).toEqual({
+      type: "stream_startup_ms",
+      values: { value: 120 },
+      context: { cameraId: "cam-124" },
+    });
+    expect(JSON.stringify(measurement)).not.toContain('"trace":"undefined"');
   });
 });

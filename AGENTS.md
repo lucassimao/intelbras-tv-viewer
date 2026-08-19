@@ -17,6 +17,16 @@ guide; keep this file as a short map of invariants and workflows.
   `server/index.ts` only wires production dependencies and lifecycle.
 - `scripts/` contains dev/serve orchestration and the generator for the ignored
   credential-bearing `runtime/mediamtx.yml`.
+- `Dockerfile`, `.dockerignore`, and `compose.yaml` define the recommended full
+  deployment: `relay-config` generates a named-volume config, `mediamtx` owns
+  HLS/RTSP, and `app` serves the static viewer while keeping the API loopback
+  inside its container.
+- `pnpm docker:build` loads the ignored `.env`, requires the non-empty
+  `FARO_SOURCE_MAP_API_KEY`, and sequentially builds the local `app` and
+  `relay-config` images. It passes the key only as a BuildKit secret and uses a
+  non-secret nonce to invalidate the build/upload layer when a key rotates.
+  `pnpm docker:up` checks both local images and runs Compose with
+  `--no-build --pull never`; it never rebuilds or pulls implicitly.
 - `vite.config.ts` conditionally enables Grafana's source-map uploader only for
   builds with the server/CI-only `FARO_SOURCE_MAP_API_KEY`.
 
@@ -26,16 +36,31 @@ guide; keep this file as a short map of invariants and workflows.
   Keep API, SQLite, RTSP, MediaMTX control/metrics, and camera ports off LAN.
 - Only HLS on `:8888` is intended for LAN clients. Never forward API, RTSP,
   control, metrics, or camera ports to the internet.
+- In Compose, only `8080` and `8888` are published. The app reaches MediaMTX
+  using the Docker service name `mediamtx`; do not replace those URLs with a
+  host address or publish the private ports for convenience.
+- Compose stores SQLite in `intelbras-tv-viewer-runtime` and generated relay
+  configuration in `intelbras-tv-viewer-relay-config`. `docker compose down`
+  preserves both; never add `-v` to routine lifecycle commands.
+- The app mounts the old `./runtime` read-only only during startup and copies
+  `cameras.sqlite` plus any SQLite WAL/SHM sidecars into the named volume when
+  it is empty. This migration must never delete or overwrite an existing
+  named-volume database.
 - Load variables with the existing `node --env-file-if-exists=.env` commands.
   `CAMERA_PASSWORD` is backend/generator-only: never put it in `VITE_*`,
   browser storage, URLs, logs, tests, source maps, or documentation.
 - Grafana Faro URL/app key and app metadata are public client configuration.
-  Faro is best effort; redact URL/IP/credential data and never add admin tokens
-  or camera data to telemetry. Tracing must remain blocked from private bridge,
-  HLS, camera, snapshot, PTZ, and reliability endpoints.
+  Faro is best effort; never add admin tokens, credentials, camera URLs, IPs,
+  or camera data to telemetry. Keep the SDK payload native so measurement trace
+  context is preserved. Tracing must remain blocked from private bridge, HLS,
+  camera, snapshot, PTZ, and reliability endpoints.
 - `FARO_SOURCE_MAP_API_KEY` is never a `VITE_` variable. Keep it in ignored
   `.env` or CI secrets. Source maps are hidden from served JS and `.map` requests
   are blocked by the TV server.
+- Docker build args may contain only public `VITE_FARO_*`/version metadata. Do
+  not add `CAMERA_PASSWORD` or `FARO_SOURCE_MAP_API_KEY` to `ARG`, build
+  contexts, or image layers. Compose runtime injection of `CAMERA_PASSWORD` is
+  intentional for the simple `.env` UX and must not be logged.
 
 ## Product invariants
 
@@ -63,7 +88,9 @@ git diff --check
 The suite currently has 70 tests and uses jsdom/temporary SQLite; it does not
 contact cameras or MediaMTX. Live HLS, TV, relay, and ffmpeg behavior require
 an explicit integration check. Do not restart or reconfigure a running relay
-for a docs-only task.
+for a docs-only task. For the container workflow, build first with `pnpm
+docker:build`, then start with `pnpm docker:up`; routine lifecycle
+commands must not use `down -v`.
 
 ## Sources of truth
 

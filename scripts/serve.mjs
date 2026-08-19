@@ -38,6 +38,11 @@ const server = createServer(async (request, response) => {
     response.writeHead(400).end();
     return;
   }
+  const requestPath = new URL(request.url, "http://tv.local").pathname;
+  if (requestPath.endsWith(".map")) {
+    response.writeHead(404, { "Cache-Control": "no-store" }).end();
+    return;
+  }
   if (request.url.startsWith("/api/")) {
     const apiMethods = new Set(["GET", "HEAD", "POST", "PUT", "DELETE"]);
     if (!request.method || !apiMethods.has(request.method)) {

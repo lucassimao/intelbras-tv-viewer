@@ -60,12 +60,14 @@ function loadSnapshotRtspOrigin(value: string | undefined) {
   }
   if (
     parsed.protocol !== "rtsp:" ||
-    !["127.0.0.1", "localhost", "::1"].includes(parsed.hostname) ||
+    !["127.0.0.1", "localhost", "::1", "mediamtx"].includes(parsed.hostname) ||
     parsed.username ||
     parsed.password ||
     (parsed.pathname !== "" && parsed.pathname !== "/")
   ) {
-    throw new Error("SNAPSHOT_RTSP_ORIGIN must be a credential-free loopback RTSP origin");
+    throw new Error(
+      "SNAPSHOT_RTSP_ORIGIN must be a credential-free loopback or Docker mediamtx RTSP origin",
+    );
   }
   return `rtsp://${parsed.host}`;
 }

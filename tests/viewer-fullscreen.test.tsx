@@ -17,7 +17,6 @@ describe("viewer fullscreen surface", () => {
         profile={STREAM_PROFILES[0]}
         customNames={{}}
         onSelectProfile={vi.fn()}
-        onRename={vi.fn()}
       />,
     );
 
@@ -33,6 +32,7 @@ describe("viewer fullscreen surface", () => {
     expect(viewerRequestFullscreen).toHaveBeenCalledTimes(1);
     expect(videoRequestFullscreen).not.toHaveBeenCalled();
     expect(screen.getByLabelText(/vídeo de/i)).toBe(video);
+    expect(screen.queryByRole("button", { name: /^renomear$/i })).toBeNull();
   });
 
   it("uses the app fullscreen fallback when the browser rejects fullscreen", async () => {
@@ -43,7 +43,6 @@ describe("viewer fullscreen surface", () => {
         profile={STREAM_PROFILES[0]}
         customNames={{}}
         onSelectProfile={vi.fn()}
-        onRename={vi.fn()}
       />,
     );
 
@@ -68,7 +67,6 @@ describe("viewer fullscreen surface", () => {
         profile={STREAM_PROFILES[0]}
         customNames={{}}
         onSelectProfile={vi.fn()}
-        onRename={vi.fn()}
       />,
     );
 
