@@ -25,6 +25,9 @@ const api = spawn(process.execPath, ["--experimental-strip-types", "server/index
 
 function safePath(requestUrl) {
   const pathname = decodeURIComponent(new URL(requestUrl, "http://tv.local").pathname);
+  // Hidden source maps are retained for a private release upload only; never
+  // serve them from the LAN viewer.
+  if (pathname.endsWith(".map")) return null;
   const relative = pathname === "/" ? "/index.html" : pathname;
   const candidate = resolve(join(root, `.${normalize(relative)}`));
   return candidate.startsWith(`${root}/`) ? candidate : null;

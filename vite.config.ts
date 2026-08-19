@@ -32,5 +32,8 @@ export default defineConfig({
   },
   build: {
     target: "es2018",
+    // Keep source maps available for a later private upload without adding a
+    // sourceMappingURL to served JS. Do not publish the generated .map files.
+    sourcemap: "hidden",
   },
 });

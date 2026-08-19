@@ -197,10 +197,18 @@
   pointer-events: none;
 }
 .viewer::before {
+  top: 10px;
+  right: 10px;
+  bottom: 10px;
+  left: 10px;
   inset: 10px;
   border: 1px solid rgba(237, 241, 231, 0.12);
 }
 .viewer::after {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   inset: 0;
   opacity: 0.12;
   background-image: repeating-linear-gradient(
@@ -215,14 +223,89 @@
   width: 100%;
   height: 100%;
   position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   inset: 0;
   display: block;
   object-fit: contain;
   background: #050708;
 }
 
+/* Fullscreen the viewer surface, never the media element itself. Keeping the
+   * video in its existing DOM node preserves the MSE/HLS pipeline on webOS. */
+.viewer.viewer--app-fullscreen {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  inset: 0;
+  z-index: 1000;
+  width: 100vw;
+  height: 100vh;
+  min-height: 100vh;
+  border: 0;
+  background: #050708;
+}
+
+.viewer.viewer--app-fullscreen::before,
+.viewer.viewer--app-fullscreen::after {
+  display: none;
+}
+
+/* Keep the fallback above independent: an older parser may reject
+   :fullscreen, which must not invalidate the class selector. */
+.viewer:fullscreen {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  inset: 0;
+  z-index: 1000;
+  width: 100vw;
+  height: 100vh;
+  min-height: 100vh;
+  border: 0;
+  background: #050708;
+}
+
+.viewer:fullscreen::before,
+.viewer:fullscreen::after {
+  display: none;
+}
+
+/* Some webOS generations expose the prefixed fullscreen pseudo-class. Keep
+   this selector in its own rule so unsupported parsers cannot discard the
+   regular fallback above. */
+.viewer:-webkit-full-screen {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  inset: 0;
+  z-index: 1000;
+  width: 100vw;
+  height: 100vh;
+  min-height: 100vh;
+  border: 0;
+  background: #050708;
+}
+
+.viewer:-webkit-full-screen::before,
+.viewer:-webkit-full-screen::after {
+  display: none;
+}
+
 .viewer__shade {
   position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   inset: 0;
   z-index: 1;
   pointer-events: none;
@@ -238,6 +321,10 @@
 .stream-loading {
   position: absolute;
   z-index: 3;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   inset: 0;
   display: grid;
   place-items: center;
@@ -314,6 +401,9 @@
 }
 
 .viewer__topline {
+  top: 0;
+  right: 0;
+  left: 0;
   inset: 0 0 auto;
   justify-content: space-between;
   padding: clamp(22px, 2.3vw, 40px);
@@ -602,6 +692,10 @@
 
 .rename-dialog-backdrop {
   position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   inset: 0;
   z-index: 20;
   display: grid;

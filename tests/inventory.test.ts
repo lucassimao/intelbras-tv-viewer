@@ -1,4 +1,4 @@
-import { readFile, rm, writeFile, mkdtemp } from "node:fs/promises";
+import { readFile, rm, mkdtemp } from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { join } from "node:path";
@@ -92,15 +92,13 @@ describe("shared camera inventory", () => {
 
   it("generates both relay paths for every available camera", async () => {
     const directory = await mkdtemp(join(tmpdir(), "intelbras-relay-test-"));
-    const passwordFile = join(directory, "password.txt");
     const outputFile = join(directory, "mediamtx.yml");
     try {
-      await writeFile(passwordFile, "test-password\n", { mode: 0o600 });
       await execFileAsync(process.execPath, ["scripts/generate-mediamtx-config.mjs"], {
         cwd: process.cwd(),
         env: {
           ...process.env,
-          CAMERA_PASSWORD_FILE: passwordFile,
+          CAMERA_PASSWORD: "test-password",
           MEDIAMTX_OUTPUT_FILE: outputFile,
         },
       });

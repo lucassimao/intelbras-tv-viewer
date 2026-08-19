@@ -2,13 +2,14 @@ import { chmod, mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 
 const projectRoot = resolve(import.meta.dirname, "..");
-const passwordFile = resolve(
-  process.env.CAMERA_PASSWORD_FILE ?? resolve(projectRoot, "runtime/camera-password.txt"),
-);
 const outputFile = resolve(
   process.env.MEDIAMTX_OUTPUT_FILE ?? resolve(projectRoot, "runtime/mediamtx.yml"),
 );
 const username = process.env.CAMERA_USERNAME ?? "admin";
+const password = process.env.CAMERA_PASSWORD;
+if (!password) {
+  throw new Error("CAMERA_PASSWORD is required to generate the MediaMTX configuration");
+}
 const profilesFile = resolve(projectRoot, "src/config/stream-profiles.json");
 const inventoryFile = resolve(projectRoot, "src/config/camera-inventory.json");
 
@@ -40,19 +41,6 @@ for (const profile of streamProfiles) {
   ) {
     throw new Error(`Invalid stream profile path suffix: ${String(profile.pathSuffix)}`);
   }
-}
-
-function passwordFromLastLine(contents) {
-  const lines = contents
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-  const candidate = lines.at(-1);
-  if (!candidate) throw new Error(`No password candidate found in ${passwordFile}`);
-
-  if (candidate.startsWith("password=")) return candidate.slice("password=".length);
-  if (candidate.startsWith("rtsp://")) return new URL(candidate).password;
-  return candidate;
 }
 
 function yamlString(value) {
@@ -121,7 +109,6 @@ const cameras = validateInventory(inventory).map((camera) => ({
   ip: camera.ip,
 }));
 
-const password = passwordFromLastLine(await readFile(passwordFile, "utf8"));
 const encodedUsername = encodeURIComponent(username);
 const encodedPassword = encodeURIComponent(password);
 

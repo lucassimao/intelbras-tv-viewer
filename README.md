@@ -44,32 +44,25 @@ The inventory marks `.124` (`cam-124`) as the single default camera. A fresh vie
 
 ## Configure
 
-The relay generator reads the last non-empty line of the file configured by
-`CAMERA_PASSWORD_FILE`. The default is the ignored local path
-`runtime/camera-password.txt`; never commit that file or put a camera password
-in browser-facing `VITE_*` variables. The generated MediaMTX file is mode `600`
+All Node services and the MediaMTX generator load the same local `.env` file
+with Node's built-in env-file support. Vite also loads `.env` for build-time
+`VITE_*` settings. `.env` is ignored by Git; never commit it or put a camera
+password in browser-facing `VITE_*` variables. `CAMERA_PASSWORD` is read only
+by the backend and relay generator. The generated MediaMTX file is mode `600`
 and ignored by Git.
 
-For a different path:
+Create the local environment file:
 
 ```bash
 cp .env.example .env
-# Edit CAMERA_PASSWORD_FILE if the password file is elsewhere.
-# Put only the password in the ignored file named by CAMERA_PASSWORD_FILE.
-```
-
-Create the local password file with restrictive permissions:
-
-```bash
-mkdir -p runtime
-chmod 700 runtime
-printf '%s\n' 'REPLACE_WITH_CAMERA_PASSWORD' > runtime/camera-password.txt
-chmod 600 runtime/camera-password.txt
+# Edit CAMERA_PASSWORD in the ignored .env file. Keep the file mode restrictive.
+chmod 600 .env
 ```
 
 The example value above is a placeholder only. Replace it locally and never
 paste a real password into this README, `.env.example`, source code, Git, or a
-browser URL.
+browser URL. If `CAMERA_PASSWORD` is absent, backend credential use and relay
+generation fail clearly without echoing the password.
 
 ## Run Stage 1
 
@@ -194,6 +187,48 @@ The dashboard reports `online`, `offline`, `degraded`, and `idle` per configured
 MediaMTX exposes RTSP packet-loss and jitter counters as aggregate RTSP-session metrics without a path label. Because the viewer consumes HLS and paths are source-on-demand, those counters are not attributed to individual profiles; the dashboard truthfully displays `—`. MediaMTX 1.20.1 also has no trustworthy per-path last-frame timestamp for HLS, so last-frame age is displayed as `—` rather than inferred from polling time or byte counters.
 
 The telemetry adapter is independent of HLS playback: API/metrics timeouts and failures only mark the dashboard stale and never stop or retry the video player.
+
+## Grafana Faro (optional client observability)
+
+The viewer has a small, lazy Grafana Faro adapter for client-side errors and
+player performance. It is disabled when `VITE_FARO_URL` is absent: in that
+mode the Faro package is not imported and the browser makes zero Faro
+requests. If the dynamic import or Faro initialization fails, playback and
+the rest of the UI continue normally.
+
+Copy the optional variables from `.env.example` when running a POC:
+
+```text
+VITE_FARO_URL=https://<your-grafana-collector>/collect
+VITE_FARO_APP_KEY=<public-app-key-if-required>
+VITE_FARO_APP_NAME=intelbras-tv-viewer
+VITE_FARO_ENVIRONMENT=local
+VITE_APP_VERSION=2026.08.19-poc
+```
+
+In Grafana Cloud, create a Frontend Observability/Faro application and use its
+collector URL and public app key. Allow the viewer origin
+`http://192.168.0.119:8080` (replace it with the current LAN address shown by
+`pnpm serve`). The URL and app key are necessarily visible in client JavaScript;
+they identify the Faro app and are not administrative credentials. Never put a
+Grafana admin/service token, camera credential, RTSP URL, HLS URL, IP address,
+or personal camera name in a `VITE_*` variable.
+
+The adapter sends bounded, named events (`stream_requested`, `first_frame`,
+stall/retry/fatal HLS errors, fullscreen and camera/profile changes) and
+measurements for startup/stall duration. It does not enable session replay,
+console capture, resource timing, request/response bodies, or headers. Event
+contexts contain only logical camera/profile IDs; URL/query/IP/credential
+patterns are redacted before Faro transport. A React render error is reported
+with a bilingual recovery screen.
+
+The production build uses Vite `sourcemap: "hidden"`: JS does not advertise a
+source map, while `dist/**/*.map` can be uploaded privately to Grafana/Sentry-
+compatible tooling for the matching release. Remove the `.map` files from the
+static server after upload; this repository does not automate an upload or
+store a Grafana token. Validate the Faro SDK on the target LG webOS TV before
+enabling it broadly—the SDK is loaded in an asynchronous chunk and remains
+best-effort for legacy browsers.
 
 ## Live + glance wall
 

@@ -31,6 +31,7 @@ import {
 } from "./hooks/useHlsPlayer";
 import { useGlanceSnapshots, type SnapshotCameraStatus } from "./hooks/useGlanceSnapshots";
 import { useStreamProfilePreferences } from "./hooks/useStreamProfilePreferences";
+import { telemetryEvent } from "./telemetry";
 
 type CameraNames = Record<string, string>;
 type ViewMode = "focus" | "glance";
@@ -184,7 +185,9 @@ function StreamLoadingOverlay({
   const { t } = useTranslation();
   const [now, setNow] = useState(() => Date.now());
   const isError = status.state === "error";
-  const isLoading = !isError && status.state !== "live";
+  // A short live-buffer transition should keep the last decoded frame visible.
+  // The full-screen loading panel is reserved for startup/reconnect states.
+  const isLoading = !isError && status.state !== "live" && status.state !== "buffering";
 
   useEffect(() => {
     if (!isLoading || status.startedAt === null) return;
@@ -203,9 +206,7 @@ function StreamLoadingOverlay({
           max: HLS_MAX_RETRIES,
           delay: Math.ceil(status.delayMs / 1_000),
         })
-      : status.state === "buffering"
-        ? t("viewer.loadingBuffering")
-        : t("viewer.loadingConnecting");
+      : t("viewer.loadingConnecting");
 
   return (
     <div className="stream-loading" role="status" aria-live="polite">
@@ -238,7 +239,7 @@ function getHlsOrigin() {
   return normalizedOrigin ?? `${window.location.protocol}//${window.location.hostname}:8888`;
 }
 
-function Viewer({
+export function Viewer({
   camera,
   profile,
   customNames,
@@ -252,11 +253,18 @@ function Viewer({
   onRename: () => void;
 }) {
   const { t } = useTranslation();
+  const viewerRef = useRef<HTMLElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [appFullscreen, setAppFullscreen] = useState(false);
+  const fullscreenTelemetryRef = useRef(false);
   const name = cameraName(camera, t, customNames);
   const streamUrl = useMemo(
     () => `${getHlsOrigin()}/${streamPathForProfile(camera, profile)}/index.m3u8`,
     [camera, profile],
+  );
+  const telemetryContext = useMemo(
+    () => ({ cameraId: camera.id, profileId: profile.id }),
+    [camera.id, profile.id],
   );
   const reportStartup = useCallback(
     (durationMs: number) => {
@@ -270,15 +278,60 @@ function Viewer({
     },
     [camera.id, profile.id],
   );
-  const { state, status, retry } = useHlsPlayer(videoRef, streamUrl, reportStartup);
+  const { state, status, retry } = useHlsPlayer(
+    videoRef,
+    streamUrl,
+    reportStartup,
+    telemetryContext,
+  );
 
   const requestFullscreen = useCallback(() => {
-    const player = videoRef.current;
-    if (player?.requestFullscreen) void player.requestFullscreen();
+    const viewer = viewerRef.current;
+    if (!viewer) return;
+    if (document.fullscreenElement === viewer) {
+      void document.exitFullscreen?.();
+      return;
+    }
+    if (viewer.requestFullscreen) {
+      void viewer
+        .requestFullscreen()
+        .catch(() => window.dispatchEvent(new Event("viewer:fullscreen-enter")));
+      return;
+    }
+    window.dispatchEvent(new Event("viewer:fullscreen-enter"));
   }, []);
 
+  useEffect(() => {
+    const setFullscreenState = (active: boolean) => {
+      setAppFullscreen(active);
+      if (fullscreenTelemetryRef.current === active) return;
+      fullscreenTelemetryRef.current = active;
+      telemetryEvent(active ? "fullscreen_entered" : "fullscreen_exited", undefined, {
+        cameraId: camera.id,
+        profileId: profile.id,
+      });
+    };
+    const onFullscreenChange = () => {
+      setFullscreenState(document.fullscreenElement === viewerRef.current);
+    };
+    const onFallbackExit = () => setFullscreenState(false);
+    const onFallbackEnter = () => setFullscreenState(true);
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    window.addEventListener("viewer:fullscreen-enter", onFallbackEnter);
+    window.addEventListener("viewer:fullscreen-exit", onFallbackExit);
+    return () => {
+      document.removeEventListener("fullscreenchange", onFullscreenChange);
+      window.removeEventListener("viewer:fullscreen-enter", onFallbackEnter);
+      window.removeEventListener("viewer:fullscreen-exit", onFallbackExit);
+    };
+  }, [camera.id, profile.id]);
+
   return (
-    <section className="viewer" aria-label={t("viewer.liveStreamLabel", { camera: name })}>
+    <section
+      ref={viewerRef}
+      className={`viewer${appFullscreen ? " viewer--app-fullscreen" : ""}`}
+      aria-label={t("viewer.liveStreamLabel", { camera: name })}
+    >
       <video
         ref={videoRef}
         autoPlay
@@ -466,7 +519,7 @@ function GlanceWall({
         <div className="glance-wall__grid">
           {visibleTiles.map((candidate) => (
             <GlanceTile
-              key={`${candidate.id}:${statusById.get(candidate.id)?.revision ?? 0}`}
+              key={candidate.id}
               camera={candidate}
               name={nameFor(candidate)}
               status={
@@ -638,7 +691,7 @@ export function CameraCatalog({
   );
 }
 
-function RenameDialog({
+export function RenameDialog({
   camera,
   currentName,
   onClose,
@@ -654,11 +707,20 @@ function RenameDialog({
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const dialogRef = useRef<HTMLElement>(null);
   const dialogCameraName = currentName ?? cameraName(camera, t);
 
   useEffect(() => {
     inputRef.current?.focus();
     inputRef.current?.select();
+
+    const keepFocusInside = (event: FocusEvent) => {
+      if (dialogRef.current && !dialogRef.current.contains(event.target as Node)) {
+        inputRef.current?.focus();
+      }
+    };
+    document.addEventListener("focusin", keepFocusInside);
+    return () => document.removeEventListener("focusin", keepFocusInside);
   }, []);
 
   const saveName = async (nextName: string | null) => {
@@ -685,6 +747,28 @@ function RenameDialog({
       event.preventDefault();
       event.stopPropagation();
       onClose();
+      return;
+    }
+    if (event.key !== "Tab" || !dialogRef.current) return;
+
+    const focusable = Array.from(
+      dialogRef.current.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ),
+    );
+    if (focusable.length === 0) {
+      event.preventDefault();
+      dialogRef.current.focus();
+      return;
+    }
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
     }
   };
 
@@ -697,8 +781,10 @@ function RenameDialog({
       }}
     >
       <section
+        ref={dialogRef}
         className="rename-dialog"
         role="dialog"
+        tabIndex={-1}
         aria-modal="true"
         aria-labelledby="rename-title"
         onKeyDown={onKeyDown}
@@ -781,7 +867,8 @@ function App() {
   );
   const activeCamera =
     availableCameras.find((camera) => camera.id === activeCameraId) ?? availableCameras[0];
-  const { profileForCamera, selectProfile } = useStreamProfilePreferences();
+  const { profileForCamera, selectProfile: persistProfileSelection } =
+    useStreamProfilePreferences();
 
   const changeViewMode = useCallback((mode: ViewMode) => {
     setViewMode(mode);
@@ -793,6 +880,12 @@ function App() {
   }, []);
 
   const openRename = useCallback((cameraId: string) => {
+    // A native fullscreen element creates a top-layer boundary on webOS. Exit
+    // it before mounting the dialog so the modal is always visible and usable.
+    if (document.fullscreenElement) void document.exitFullscreen?.();
+    if (document.querySelector<HTMLElement>(".viewer--app-fullscreen")) {
+      window.dispatchEvent(new Event("viewer:fullscreen-exit"));
+    }
     renameOriginRef.current =
       document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setRenameCameraId(cameraId);
@@ -842,7 +935,20 @@ function App() {
     if (!camera) return;
     setActiveCameraId(camera.id);
     setCatalogPage(catalogPageForCamera(CAMERAS, camera.id, CAMERA_CATALOG_PAGE_SIZE));
+    telemetryEvent("camera_changed", { source: "selection" }, { cameraId: camera.id });
   }, []);
+
+  const selectProfile = useCallback(
+    (camera: Camera, profileId: StreamProfile["id"]) => {
+      if (!streamProfilesForCamera(camera).some((candidate) => candidate.id === profileId)) return;
+      persistProfileSelection(camera, profileId);
+      telemetryEvent("profile_changed", undefined, {
+        cameraId: camera.id,
+        profileId,
+      });
+    },
+    [persistProfileSelection],
+  );
 
   const moveCamera = useCallback(
     (direction: -1 | 1) => {
@@ -850,6 +956,13 @@ function App() {
       if (!camera) return;
       setActiveCameraId(camera.id);
       setCatalogPage(catalogPageForCamera(CAMERAS, camera.id, CAMERA_CATALOG_PAGE_SIZE));
+      telemetryEvent(
+        "camera_changed",
+        { source: direction < 0 ? "previous" : "next" },
+        {
+          cameraId: camera.id,
+        },
+      );
     },
     [activeCameraId],
   );
@@ -861,6 +974,15 @@ function App() {
 
       const command = inputCommandForKey(event);
       if (command === "back") {
+        const fullscreenViewer =
+          document.fullscreenElement?.closest(".viewer") ??
+          document.querySelector<HTMLElement>(".viewer--app-fullscreen");
+        if (fullscreenViewer) {
+          event.preventDefault();
+          if (document.fullscreenElement) void document.exitFullscreen?.();
+          window.dispatchEvent(new Event("viewer:fullscreen-exit"));
+          return;
+        }
         if (showReliability) {
           event.preventDefault();
           setShowReliability(false);

@@ -4,12 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node scripts/dev.mjs",
-    "dev:all": "node scripts/dev.mjs",
-    "start": "node scripts/dev.mjs",
-    "serve": "pnpm build && node scripts/serve.mjs",
-    "serve:static": "node scripts/serve.mjs",
-    "api": "node --experimental-strip-types server/index.ts",
+    "dev": "node --env-file-if-exists=.env scripts/dev.mjs",
+    "dev:all": "node --env-file-if-exists=.env scripts/dev.mjs",
+    "start": "node --env-file-if-exists=.env scripts/dev.mjs",
+    "serve": "pnpm build && node --env-file-if-exists=.env scripts/serve.mjs",
+    "serve:static": "node --env-file-if-exists=.env scripts/serve.mjs",
+    "api": "node --env-file-if-exists=.env --experimental-strip-types server/index.ts",
     "dev:api": "pnpm api",
     "build": "tsc -b && vite build",
     "format": "oxfmt . README.md compose.yaml",
@@ -28,6 +28,7 @@
     "relay:down": "docker compose down"
   },
   "dependencies": {
+    "@grafana/faro-web-sdk": "^2.10.0",
     "abortcontroller-polyfill": "^1.7.8",
     "hls.js": "^1.7.0",
     "i18next": "^26.3.6",
