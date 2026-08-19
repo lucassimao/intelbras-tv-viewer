@@ -43,11 +43,11 @@ export const ptBR = {
   streamProfiles: {
     label: "Qualidade da transmissão",
     dataSaver: {
-      label: "Economia de dados",
+      label: "Econômica",
       description: "Substream · menor consumo",
     },
     high: {
-      label: "Alta qualidade",
+      label: "Alta",
       description: "Stream principal · 1080p",
     },
   },
@@ -113,7 +113,7 @@ export const ptBR = {
     title: "Mural",
     liveCount: "1 AO VIVO",
     locked: "Bloqueada",
-    offline: "Offline",
+    error: "Falha na captura",
     waiting: "Aguardando imagem",
     ageSeconds: "Há {{seconds}} s",
     imageError: "Imagem indisponível",

@@ -36,7 +36,7 @@ describe("camera names API", () => {
         CAMERA_DB_PATH: join(databaseDirectory, "names.sqlite"),
         MEDIAMTX_API_URL: "http://127.0.0.1:1",
         MEDIAMTX_METRICS_URL: "http://127.0.0.1:1/metrics",
-        SNAPSHOT_FFMPEG: "/bin/false",
+        SNAPSHOT_FFMPEG: join(process.cwd(), "tests/fixtures/fake-ffmpeg"),
       },
       stdio: "ignore",
     });
@@ -112,6 +112,32 @@ describe("camera names API", () => {
     expect(stopped.status).toBe(200);
     await expect(stopped.json()).resolves.toMatchObject({ active: false });
   });
+
+  it("forwards binary JPEG bytes and honors revision ETags", async () => {
+    const lease = await fetch(`${baseUrl}/api/snapshots/lease`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ priorityCameraIds: ["cam-124", "cam-114"] }),
+    });
+    expect(lease.status).toBe(202);
+
+    const first = await waitForSnapshot(baseUrl, "cam-124");
+    expect(first.status).toBe(200);
+    expect(first.headers.get("content-type")).toContain("image/jpeg");
+    expect(first.headers.get("etag")).toBeTruthy();
+    expect(new Uint8Array(await first.arrayBuffer()).slice(0, 2)).toEqual(
+      new Uint8Array([0xff, 0xd8]),
+    );
+
+    const etag = first.headers.get("etag");
+    const notModified = await fetch(`${baseUrl}/api/snapshots/cam-124`, {
+      headers: { "If-None-Match": etag ?? "" },
+    });
+    expect(notModified.status).toBe(304);
+    expect(notModified.headers.get("etag")).toBe(etag);
+
+    await fetch(`${baseUrl}/api/snapshots/lease`, { method: "DELETE" });
+  });
 });
 
 async function availablePort() {
@@ -137,4 +163,14 @@ async function waitForHealth(url: string) {
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
   throw new Error("Camera API did not become healthy");
+}
+
+async function waitForSnapshot(url: string, cameraId: string) {
+  const deadline = Date.now() + 8_000;
+  while (Date.now() < deadline) {
+    const response = await fetch(`${url}/api/snapshots/${cameraId}`);
+    if (response.status === 200) return response;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  throw new Error(`Snapshot did not become ready: ${cameraId}`);
 }

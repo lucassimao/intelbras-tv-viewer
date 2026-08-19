@@ -37,4 +37,16 @@ describe("glance snapshot response validation", () => {
     expect(parseSnapshotResponse({ active: true, statuses: [{ cameraId: "cam-114" }] })).toBeNull();
     expect(parseSnapshotResponse({ statuses: "not-an-array" })).toBeNull();
   });
+
+  it("accepts a truthful capture error state", () => {
+    expect(
+      parseSnapshotStatus({
+        cameraId: "cam-114",
+        status: "error",
+        capturedAt: null,
+        ageMs: null,
+        revision: 0,
+      }),
+    ).toMatchObject({ status: "error", revision: 0 });
+  });
 });

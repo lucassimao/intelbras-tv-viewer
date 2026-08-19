@@ -1609,3 +1609,729 @@
     outline: 3px solid Highlight;
   }
 }
+
+/*
+ * TV console pass
+ *
+ * The visible panel of a living-room TV is smaller than the browser viewport
+ * reported by webOS. Keep a conservative inset in the first declaration and
+ * enhance it for modern browsers afterwards. The feed gets the visual weight;
+ * controls are grouped into short, legible docks instead of competing cards.
+ */
+.console-shell {
+  width: 100%;
+  max-width: 100%;
+  min-height: 100vh;
+  min-height: 100svh;
+  padding: 24px 40px;
+  padding-block: max(24px, 4vh);
+  padding-inline: max(40px, 5vw);
+  gap: 14px;
+  overflow-x: hidden;
+  overflow-x: clip;
+}
+
+.masthead {
+  display: grid;
+  grid-template-columns: minmax(230px, 1fr) auto;
+  align-items: center;
+  gap: 20px;
+  min-height: 56px;
+  min-width: 0;
+}
+
+.brand {
+  min-width: 0;
+  gap: 12px;
+}
+
+.brand > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+}
+
+.brand__mark {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  border-color: rgba(229, 183, 76, 0.55);
+  box-shadow: inset 0 0 0 3px var(--background);
+}
+
+.brand div {
+  min-width: 0;
+}
+
+.brand strong {
+  overflow: hidden;
+  font-size: clamp(17px, 1.35vw, 25px);
+  letter-spacing: 0.035em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.brand span:last-child,
+.masthead__meta span,
+.camera-card small,
+.help-line {
+  letter-spacing: 0.035em;
+}
+
+.brand span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.masthead__meta {
+  display: grid;
+  grid-template-columns: max-content max-content max-content;
+  grid-template-areas:
+    "network clock clock"
+    "mode dashboard language";
+  align-items: center;
+  justify-items: end;
+  gap: 7px 10px;
+  min-width: 0;
+}
+
+.masthead__meta > span {
+  grid-area: network;
+  justify-self: start;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.masthead__meta time {
+  grid-area: clock;
+  justify-self: end;
+  font-size: clamp(22px, 2.2vw, 34px);
+  line-height: 1;
+}
+
+.mode-switcher {
+  grid-area: mode;
+  border-color: rgba(229, 183, 76, 0.46);
+}
+
+.dashboard-toggle {
+  grid-area: dashboard;
+}
+
+.language-switcher {
+  grid-area: language;
+}
+
+.mode-switcher button,
+.dashboard-toggle,
+.language-switcher button {
+  min-height: 38px;
+  font-size: 10px;
+  letter-spacing: 0.035em;
+}
+
+.mode-switcher button {
+  padding-inline: 13px;
+}
+
+.dashboard-toggle {
+  padding-inline: 13px;
+}
+
+.language-switcher button {
+  min-width: 38px;
+  padding-inline: 10px;
+  letter-spacing: 0.03em;
+}
+
+.mode-switcher button[aria-pressed="true"],
+.language-switcher button[aria-pressed="true"] {
+  position: relative;
+  color: #1b1710;
+  font-weight: 800;
+  background: var(--signal);
+}
+
+.mode-switcher button[aria-pressed="true"]::after,
+.language-switcher button[aria-pressed="true"]::after {
+  content: "";
+  position: absolute;
+  right: 5px;
+  bottom: 4px;
+  left: 5px;
+  height: 2px;
+  background: #1b1710;
+}
+
+.viewer {
+  width: 100%;
+  max-width: 100%;
+  min-height: 0;
+  height: 420px;
+  aspect-ratio: 16 / 9;
+  border-color: rgba(229, 183, 76, 0.38);
+  border-radius: 3px;
+  box-shadow: 0 14px 42px rgba(0, 0, 0, 0.48);
+}
+
+.viewer::before {
+  inset: 8px;
+  border-color: rgba(237, 241, 231, 0.18);
+}
+
+.viewer__shade {
+  background: linear-gradient(
+    to bottom,
+    rgba(3, 5, 6, 0.76),
+    transparent 20%,
+    transparent 72%,
+    rgba(3, 5, 6, 0.88)
+  );
+}
+
+.viewer__topline {
+  inset-inline: 0;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 22px 24px;
+}
+
+.eyebrow {
+  font-size: 10px;
+  letter-spacing: 0.11em;
+}
+
+.viewer h1 {
+  margin-top: 5px;
+  font-size: clamp(25px, 2.8vw, 48px);
+  letter-spacing: 0.02em;
+}
+
+.viewer__controls {
+  align-items: center;
+  gap: 8px;
+  padding: 5px;
+  border: 1px solid rgba(237, 241, 231, 0.2);
+  background: rgba(5, 8, 9, 0.76);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(8px);
+}
+
+.stream-profile-selector__options {
+  gap: 4px;
+}
+
+.stream-profile-option {
+  min-width: 112px;
+  min-height: 40px;
+  gap: 8px;
+  padding: 5px 9px;
+  border-color: rgba(237, 241, 231, 0.24);
+  background: rgba(13, 18, 18, 0.9);
+}
+
+.stream-profile-option strong {
+  font-size: 10px;
+  letter-spacing: 0.025em;
+}
+
+.stream-profile-option small {
+  max-width: 108px;
+  font-size: 8px;
+  letter-spacing: 0;
+}
+
+.stream-profile-option--active {
+  border-color: var(--signal);
+  box-shadow: inset 0 -2px 0 var(--signal);
+}
+
+.stream-profile-option--active .stream-profile-option__dot {
+  box-shadow: 0 0 0 3px rgba(229, 183, 76, 0.17);
+}
+
+.status-pill {
+  min-height: 40px;
+  gap: 8px;
+  padding: 0 11px;
+  border-color: rgba(84, 213, 147, 0.42);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.viewer__footer {
+  inset-inline: 24px;
+  bottom: 18px;
+  gap: 14px;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+
+.fullscreen-button {
+  min-height: 40px;
+  padding: 0 12px;
+  letter-spacing: 0.04em;
+}
+
+.ptz-controls {
+  left: 24px;
+  bottom: 62px;
+  width: 148px;
+  padding: 8px;
+  border-color: rgba(237, 241, 231, 0.28);
+}
+
+.ptz-pad button {
+  min-height: 36px;
+}
+
+.camera-catalog {
+  gap: 8px;
+}
+
+.camera-catalog__header {
+  min-height: 42px;
+}
+
+.camera-catalog h2 {
+  font-size: clamp(20px, 1.8vw, 28px);
+  letter-spacing: 0.025em;
+}
+
+.camera-page-button {
+  min-width: 44px;
+  min-height: 42px;
+}
+
+.camera-catalog__grid {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.camera-card {
+  min-height: 70px;
+  gap: 9px;
+  padding: 9px 10px;
+  border-color: rgba(76, 87, 88, 0.92);
+}
+
+.camera-card__number {
+  width: 30px;
+  height: 30px;
+  font-size: 12px;
+}
+
+.camera-card strong {
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+
+.camera-card small {
+  font-size: 9px;
+}
+
+.camera-card__state {
+  display: none;
+}
+
+.camera-card__rename {
+  width: 48px;
+  max-width: 48px;
+  padding-inline: 4px;
+  color: var(--ink-muted);
+  font-size: 8px;
+  letter-spacing: 0.025em;
+}
+
+.camera-card--active {
+  border-width: 2px;
+  padding: 8px 9px;
+  background: #1d2523;
+}
+
+.help-line {
+  min-height: 24px;
+  gap: 18px;
+  font-size: 10px;
+  letter-spacing: 0.025em;
+}
+
+.help-line kbd {
+  padding: 3px 5px;
+}
+
+@media (max-width: 1350px) and (min-width: 901px) {
+  .console-shell {
+    padding-inline: 5vw;
+  }
+
+  .masthead {
+    grid-template-columns: minmax(200px, 1fr) auto;
+    gap: 14px;
+  }
+
+  .masthead__meta {
+    gap: 6px 8px;
+  }
+
+  .masthead__meta > span {
+    font-size: 9px;
+  }
+
+  .mode-switcher button,
+  .dashboard-toggle,
+  .language-switcher button {
+    min-height: 36px;
+    font-size: 9px;
+  }
+
+  .viewer__topline {
+    padding: 18px 20px;
+  }
+
+  .viewer__footer {
+    inset-inline: 20px;
+  }
+
+  .camera-card__rename {
+    width: 44px;
+    max-width: 44px;
+    font-size: 7px;
+  }
+}
+
+@media (max-width: 900px) {
+  .console-shell {
+    min-height: 100vh;
+    min-height: 100dvh;
+    min-height: 100svh;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+    padding-top: calc(16px + env(safe-area-inset-top));
+    padding-right: calc(16px + env(safe-area-inset-right));
+    padding-bottom: calc(16px + env(safe-area-inset-bottom));
+    padding-left: calc(16px + env(safe-area-inset-left));
+  }
+
+  .masthead {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    min-height: 0;
+  }
+
+  .masthead__meta {
+    display: flex;
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .masthead__meta > span {
+    display: none;
+  }
+
+  .masthead__meta time {
+    order: -1;
+    margin-left: auto;
+    font-size: clamp(20px, 5vw, 28px);
+  }
+
+  .viewer {
+    height: calc(100vw * 9 / 16);
+    height: auto;
+    min-height: 0;
+    aspect-ratio: 16 / 9;
+  }
+
+  .viewer__topline {
+    padding: 14px;
+  }
+
+  .viewer__controls {
+    max-width: 58%;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .stream-profile-option {
+    min-width: 96px;
+  }
+
+  .stream-profile-option small {
+    display: none;
+  }
+
+  .viewer__footer {
+    inset-inline: 14px;
+    bottom: 12px;
+  }
+
+  .camera-catalog__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .camera-card {
+    min-height: 76px;
+  }
+}
+
+@media (max-width: 520px) {
+  .console-shell {
+    padding: 12px;
+    padding-top: calc(12px + env(safe-area-inset-top));
+    padding-right: calc(12px + env(safe-area-inset-right));
+    padding-bottom: calc(12px + env(safe-area-inset-bottom));
+    padding-left: calc(12px + env(safe-area-inset-left));
+  }
+
+  .masthead {
+    flex-direction: column;
+  }
+
+  .masthead__meta {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .masthead__meta time {
+    margin-left: 0;
+  }
+
+  .mode-switcher button,
+  .dashboard-toggle,
+  .language-switcher button {
+    min-height: 44px;
+  }
+
+  .viewer__topline {
+    gap: 8px;
+  }
+
+  .viewer h1 {
+    max-width: 42vw;
+    font-size: clamp(18px, 5vw, 28px);
+  }
+
+  .viewer__controls {
+    max-width: 62%;
+    padding: 3px;
+  }
+
+  .stream-profile-option {
+    min-width: 44px;
+    padding-inline: 7px;
+  }
+
+  .stream-profile-option__copy {
+    max-width: 68px;
+  }
+
+  .stream-profile-option strong {
+    font-size: 9px;
+  }
+
+  .status-pill {
+    min-height: 36px;
+    padding-inline: 8px;
+  }
+
+  .ptz-controls {
+    width: 132px;
+    left: 12px;
+    bottom: 52px;
+  }
+
+  .camera-card__rename {
+    width: 44px;
+    max-width: 44px;
+  }
+}
+
+@media (max-height: 650px) and (min-width: 901px) {
+  .console-shell {
+    padding-top: 18px;
+    padding-bottom: 18px;
+    gap: 10px;
+  }
+
+  .masthead {
+    min-height: 48px;
+  }
+
+  .viewer {
+    aspect-ratio: auto;
+    height: min(48vh, 390px);
+  }
+
+  .camera-card {
+    min-height: 62px;
+  }
+
+  .help-line {
+    display: none;
+  }
+}
+
+/*
+ * Stream dock: short labels are deliberately self-explanatory at a distance.
+ * Detailed profile descriptions remain available through the button title and
+ * accessible name, while the live state stays a passive status badge.
+ */
+.viewer__controls {
+  position: absolute;
+  z-index: 7;
+  right: clamp(18px, 2.4vw, 40px);
+  bottom: clamp(52px, 5.5vw, 78px);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100% - 36px);
+  padding: 6px;
+  border: 1px solid rgba(237, 241, 231, 0.24);
+  background: linear-gradient(180deg, rgba(7, 10, 11, 0.9), rgba(7, 10, 11, 0.72));
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.34);
+  backdrop-filter: blur(10px);
+}
+
+.stream-profile-selector__options {
+  display: flex;
+  gap: 4px;
+}
+
+.stream-profile-option {
+  position: relative;
+  min-width: 108px;
+  min-height: 48px;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 14px;
+  border-color: rgba(237, 241, 231, 0.3);
+  background: rgba(13, 18, 18, 0.92);
+}
+
+.stream-profile-option strong {
+  overflow: visible;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+.stream-profile-option small {
+  display: none;
+}
+
+.stream-profile-option--active {
+  border-color: var(--signal);
+  color: var(--ink);
+  background: rgba(48, 42, 24, 0.92);
+  box-shadow: inset 0 -3px 0 var(--signal);
+}
+
+.stream-profile-option--active::after {
+  content: "✓";
+  color: var(--signal);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.stream-profile-option:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline: 3px solid var(--signal);
+  outline-offset: 3px;
+}
+
+.status-pill {
+  flex: 0 0 auto;
+  min-height: 34px;
+  gap: 7px;
+  padding: 0 8px;
+  border: 0;
+  color: var(--ink);
+  font-size: 11px;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  white-space: nowrap;
+  background: transparent;
+  box-shadow: none;
+  pointer-events: none;
+}
+
+.status-pill__light {
+  width: 8px;
+  height: 8px;
+}
+
+@media (max-width: 900px) {
+  .viewer__controls {
+    right: 10px;
+    bottom: 52px;
+    gap: 4px;
+    max-width: calc(100% - 20px);
+    padding: 4px;
+  }
+
+  .stream-profile-selector__options {
+    gap: 3px;
+  }
+
+  .stream-profile-option {
+    min-width: 90px;
+    min-height: 44px;
+    padding-inline: 9px;
+  }
+
+  .stream-profile-option strong {
+    font-size: 12px;
+  }
+
+  .status-pill {
+    min-height: 32px;
+    padding-inline: 6px;
+    font-size: 10px;
+  }
+}
+
+@media (max-width: 420px) {
+  .viewer__controls {
+    right: 8px;
+    bottom: 50px;
+    max-width: calc(100% - 16px);
+  }
+
+  .stream-profile-option {
+    min-width: 82px;
+    padding-inline: 7px;
+  }
+
+  .stream-profile-option strong {
+    font-size: 11px;
+  }
+
+  .status-pill {
+    padding-inline: 4px;
+    font-size: 9px;
+  }
+}
+
+@media (min-width: 901px) and (max-height: 740px) {
+  .console-shell {
+    padding-block: 22px;
+    gap: 10px;
+  }
+
+  .viewer {
+    height: min(420px, 54vh);
+  }
+}

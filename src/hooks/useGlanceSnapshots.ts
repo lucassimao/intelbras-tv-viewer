@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-export type SnapshotStatus = "waiting" | "capturing" | "ready" | "stale" | "offline" | "locked";
+export type SnapshotStatus = "waiting" | "capturing" | "ready" | "stale" | "error" | "locked";
 
 export type SnapshotCameraStatus = {
   cameraId: string;
@@ -22,14 +22,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 export function parseSnapshotStatus(value: unknown): SnapshotCameraStatus | null {
   if (!isRecord(value) || typeof value.cameraId !== "string" || typeof value.status !== "string")
     return null;
-  const statuses: SnapshotStatus[] = [
-    "waiting",
-    "capturing",
-    "ready",
-    "stale",
-    "offline",
-    "locked",
-  ];
+  const statuses: SnapshotStatus[] = ["waiting", "capturing", "ready", "stale", "error", "locked"];
   if (!statuses.includes(value.status as SnapshotStatus)) return null;
   if (value.capturedAt !== null && typeof value.capturedAt !== "string") return null;
   if (
@@ -61,19 +54,38 @@ export function parseSnapshotResponse(value: unknown): SnapshotResult | null {
   return { active: value.active === true, statuses };
 }
 
-export function useGlanceSnapshots(active: boolean) {
+export type GlanceSnapshotOptions = {
+  priorityCameraIds?: readonly string[];
+};
+
+export function useGlanceSnapshots(active: boolean, options: GlanceSnapshotOptions = {}) {
   const [result, setResult] = useState<SnapshotResult>({ active: false, statuses: [] });
   const [unavailable, setUnavailable] = useState(false);
+  const priorityCameraIds = useMemo(
+    () => options.priorityCameraIds ?? [],
+    [options.priorityCameraIds],
+  );
 
   useEffect(() => {
     if (!active) return;
 
     let disposed = false;
+    const inFlight = new Set<AbortController>();
     const load = async (lease: boolean) => {
+      if (disposed) return;
+      const controller = new AbortController();
+      inFlight.add(controller);
       try {
         const response = await fetch(lease ? "/api/snapshots/lease" : "/api/snapshots/status", {
           method: lease ? "POST" : "GET",
+          ...(lease
+            ? {
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ priorityCameraIds }),
+              }
+            : {}),
           cache: "no-store",
+          signal: controller.signal,
         });
         if (!response.ok) throw new Error("snapshot_service_unavailable");
         const parsed = parseSnapshotResponse((await response.json()) as unknown);
@@ -84,6 +96,8 @@ export function useGlanceSnapshots(active: boolean) {
         }
       } catch {
         if (!disposed) setUnavailable(true);
+      } finally {
+        inFlight.delete(controller);
       }
     };
 
@@ -92,13 +106,15 @@ export function useGlanceSnapshots(active: boolean) {
     const leaseTimer = window.setInterval(() => void load(true), 10_000);
     return () => {
       disposed = true;
+      for (const controller of inFlight) controller.abort();
+      inFlight.clear();
       window.clearInterval(statusTimer);
       window.clearInterval(leaseTimer);
       void fetch("/api/snapshots/lease", { method: "DELETE", keepalive: true }).catch(() => {
         // Cleanup is best effort; the server also expires inactive leases.
       });
     };
-  }, [active]);
+  }, [active, priorityCameraIds]);
 
   return { ...result, unavailable };
 }

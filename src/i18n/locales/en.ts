@@ -47,7 +47,7 @@ export const en = {
       description: "Substream · lower usage",
     },
     high: {
-      label: "High quality",
+      label: "High",
       description: "Main stream · 1080p",
     },
   },
@@ -112,7 +112,7 @@ export const en = {
     title: "Glance wall",
     liveCount: "1 LIVE",
     locked: "Locked",
-    offline: "Offline",
+    error: "Capture failed",
     waiting: "Waiting for image",
     ageSeconds: "{{seconds}}s ago",
     imageError: "Image unavailable",

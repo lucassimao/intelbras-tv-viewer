@@ -33,6 +33,7 @@ const SNAPSHOT_INTERVAL_MS = 10_000;
 const SNAPSHOT_LEASE_GRACE_MS = 30_000;
 const SNAPSHOT_TIMEOUT_MS = 8_000;
 const SNAPSHOT_MAX_BYTES = 2_000_000;
+const SNAPSHOT_CONCURRENCY = 2;
 const SNAPSHOT_FFMPEG = process.env.SNAPSHOT_FFMPEG ?? "ffmpeg";
 const SNAPSHOT_RTSP_ORIGIN = (() => {
   const candidate = process.env.SNAPSHOT_RTSP_ORIGIN ?? "rtsp://127.0.0.1:8554";
@@ -105,7 +106,7 @@ const startupHistory = new Map<string, number[]>();
 let latestReliability: ReliabilitySnapshot | undefined;
 let telemetryRefresh: Promise<void> | undefined;
 
-type SnapshotStatus = "waiting" | "capturing" | "ready" | "stale" | "offline" | "locked";
+type SnapshotStatus = "waiting" | "capturing" | "ready" | "stale" | "error" | "locked";
 type SnapshotCacheEntry = {
   cameraId: string;
   status: Exclude<SnapshotStatus, "locked">;
@@ -120,6 +121,7 @@ let snapshotLeaseAt = 0;
 let snapshotScheduler: ReturnType<typeof setTimeout> | undefined;
 let snapshotRefresh: Promise<void> | undefined;
 let snapshotRevision = 0;
+let snapshotPriorityCameraIds: string[] = [];
 
 function snapshotCamera(cameraId: string) {
   return CAMERAS.find((camera) => camera.id === cameraId && camera.enabled);
@@ -230,25 +232,39 @@ function captureSnapshot(cameraId: string): Promise<Buffer> {
 async function refreshSnapshots() {
   if (snapshotRefresh || !snapshotLeaseActive()) return snapshotRefresh;
   snapshotRefresh = (async () => {
-    // One capture at a time keeps camera and CPU load predictable. The cursor
-    // rotates after each pass so a single slow camera cannot starve the wall.
-    for (const camera of CAMERAS) {
-      if (!camera.enabled || !snapshotLeaseActive()) continue;
-      const entry = ensureSnapshotEntry(camera.id);
-      entry.status = "capturing";
-      try {
-        const image = await captureSnapshot(camera.id);
-        snapshotRevision += 1;
-        entry.image = image;
-        entry.revision = snapshotRevision;
-        entry.capturedAt = new Date().toISOString();
-        entry.status = "ready";
-        entry.error = null;
-      } catch (error) {
-        entry.status = entry.image ? "stale" : "offline";
-        entry.error = error instanceof Error ? error.message.slice(0, 120) : "snapshot_failed";
+    // Prioritize the first visible wall tiles and capture only two cameras at a
+    // time. This makes the wall useful on slower TVs without opening a burst
+    // of RTSP sessions or competing with the single live HLS player.
+    const enabled = CAMERAS.filter((camera) => camera.enabled);
+    const priority = snapshotPriorityCameraIds
+      .map((cameraId) => enabled.find((camera) => camera.id === cameraId))
+      .filter((camera): camera is (typeof enabled)[number] => camera !== undefined);
+    const ordered = [
+      ...priority,
+      ...enabled.filter((camera) => !snapshotPriorityCameraIds.includes(camera.id)),
+    ];
+    let cursor = 0;
+    const worker = async () => {
+      while (cursor < ordered.length && snapshotLeaseActive()) {
+        const camera = ordered[cursor];
+        cursor += 1;
+        const entry = ensureSnapshotEntry(camera.id);
+        entry.status = "capturing";
+        try {
+          const image = await captureSnapshot(camera.id);
+          snapshotRevision += 1;
+          entry.image = image;
+          entry.revision = snapshotRevision;
+          entry.capturedAt = new Date().toISOString();
+          entry.status = "ready";
+          entry.error = null;
+        } catch (error) {
+          entry.status = entry.image ? "stale" : "error";
+          entry.error = error instanceof Error ? error.message.slice(0, 120) : "snapshot_failed";
+        }
       }
-    }
+    };
+    await Promise.all(Array.from({ length: SNAPSHOT_CONCURRENCY }, () => worker()));
   })().finally(() => {
     snapshotRefresh = undefined;
   });
@@ -597,6 +613,26 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse)
 
   try {
     if (requestUrl.pathname === "/api/snapshots/lease" && request.method === "POST") {
+      const body = await readRequestBody(request);
+      if (body.trim()) {
+        try {
+          const parsed = parseJsonObject(JSON.parse(body));
+          const requested = parsed?.priorityCameraIds;
+          snapshotPriorityCameraIds = Array.isArray(requested)
+            ? requested
+                .filter(
+                  (cameraId): cameraId is string =>
+                    typeof cameraId === "string" &&
+                    CAMERAS.some((camera) => camera.id === cameraId && camera.enabled),
+                )
+                .slice(0, CAMERAS.length)
+            : [];
+        } catch {
+          snapshotPriorityCameraIds = [];
+        }
+      } else {
+        snapshotPriorityCameraIds = [];
+      }
       snapshotLeaseAt = Date.now();
       void refreshSnapshots();
       scheduleSnapshotRefresh(0);
@@ -606,6 +642,7 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse)
 
     if (requestUrl.pathname === "/api/snapshots/lease" && request.method === "DELETE") {
       snapshotLeaseAt = 0;
+      snapshotPriorityCameraIds = [];
       if (snapshotScheduler) {
         clearTimeout(snapshotScheduler);
         snapshotScheduler = undefined;
@@ -643,12 +680,15 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse)
       }
       const etag = `"${entry.revision.toString(36)}"`;
       if (request.headers["if-none-match"] === etag) {
-        response.writeHead(304, { ETag: etag, "Cache-Control": "no-store" });
+        response.writeHead(304, {
+          ETag: etag,
+          "Cache-Control": "no-cache, max-age=0, must-revalidate",
+        });
         response.end();
         return;
       }
       response.writeHead(200, {
-        "Cache-Control": "no-store",
+        "Cache-Control": "no-cache, max-age=0, must-revalidate",
         "Content-Type": "image/jpeg",
         "Content-Length": entry.image.byteLength,
         ETag: etag,

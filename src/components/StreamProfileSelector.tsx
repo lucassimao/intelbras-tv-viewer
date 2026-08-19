@@ -50,6 +50,7 @@ export function StreamProfileSelector({
               role="radio"
               data-profile-id={profile.id}
               aria-checked={selected}
+              aria-label={`${t(profile.labelKey)} · ${t(profile.descriptionKey)}`}
               className={`stream-profile-option${selected ? " stream-profile-option--active" : ""}`}
               onClick={() => onSelect(profile.id)}
               title={t(profile.descriptionKey)}
@@ -57,7 +58,6 @@ export function StreamProfileSelector({
               <span className="stream-profile-option__dot" aria-hidden="true" />
               <span className="stream-profile-option__copy">
                 <strong>{t(profile.labelKey)}</strong>
-                <small>{t(profile.descriptionKey)}</small>
               </span>
             </button>
           );

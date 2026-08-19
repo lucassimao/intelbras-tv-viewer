@@ -294,14 +294,14 @@ function Viewer({
           <span className="eyebrow">{t("viewer.currentFeed")}</span>
           <h1>{name}</h1>
         </div>
-        <div className="viewer__controls">
-          <StreamProfileSelector
-            profiles={streamProfilesForCamera(camera)}
-            selectedProfileId={profile.id}
-            onSelect={onSelectProfile}
-          />
-          <StatusPill state={state} />
-        </div>
+      </div>
+      <div className="viewer__controls">
+        <StreamProfileSelector
+          profiles={streamProfilesForCamera(camera)}
+          selectedProfileId={profile.id}
+          onSelect={onSelectProfile}
+        />
+        <StatusPill state={state} />
       </div>
 
       {state === "error" ? (
@@ -332,7 +332,7 @@ function Viewer({
 
 function snapshotAgeLabel(status: SnapshotCameraStatus, t: TFunction) {
   if (status.status === "locked") return t("glance.locked");
-  if (status.status === "offline") return t("glance.offline");
+  if (status.status === "error") return t("glance.error");
   if (status.status === "capturing" || status.status === "waiting") return t("glance.waiting");
   if (status.ageMs === null) return t("glance.waiting");
   if (status.ageMs < 1_000) return t("glance.ageSeconds", { seconds: 0 });
@@ -359,7 +359,7 @@ function GlanceTile({
   const locked = !camera.enabled;
   const unavailable =
     imageFailed ||
-    status.status === "offline" ||
+    status.status === "error" ||
     status.status === "waiting" ||
     status.status === "capturing" ||
     !imageUrl;
@@ -417,7 +417,14 @@ function GlanceWall({
   onRename: () => void;
 }) {
   const { t } = useTranslation();
-  const { statuses, unavailable } = useGlanceSnapshots(true);
+  const priorityCameraIds = useMemo(
+    () =>
+      CAMERAS.filter((candidate) => candidate.id !== camera.id)
+        .slice(0, GLANCE_PAGE_SIZE)
+        .map((candidate) => candidate.id),
+    [camera.id],
+  );
+  const { statuses, unavailable } = useGlanceSnapshots(true, { priorityCameraIds });
   const [page, setPage] = useState(0);
   const statusById = useMemo(
     () => new Map(statuses.map((status) => [status.cameraId, status])),
@@ -436,7 +443,6 @@ function GlanceWall({
     <section className="glance-wall" aria-label={t("glance.wallLabel")}>
       <div className="glance-wall__live">
         <Viewer
-          key={`${camera.id}:${profile.id}`}
           camera={camera}
           profile={profile}
           customNames={customNames}
@@ -910,9 +916,6 @@ function App() {
     <main className="console-shell">
       <header className="masthead">
         <div className="brand">
-          <span className="brand__mark" aria-hidden="true">
-            IV
-          </span>
           <div>
             <strong>{t("header.title")}</strong>
             <span>{t("header.subtitle")}</span>
@@ -956,7 +959,6 @@ function App() {
         />
       ) : (
         <Viewer
-          key={`${activeCamera.id}:${activeProfile.id}`}
           camera={activeCamera}
           profile={activeProfile}
           customNames={customNames}

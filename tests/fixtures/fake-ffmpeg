@@ -1,0 +1,3 @@
+#!/bin/sh
+# Deterministic snapshot transport for API tests; no credentials are read.
+printf '\377\330\377\331'
