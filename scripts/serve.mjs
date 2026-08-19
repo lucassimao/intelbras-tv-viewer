@@ -31,11 +31,16 @@ function safePath(requestUrl) {
 }
 
 const server = createServer(async (request, response) => {
-  if (!request.url || (request.method !== "GET" && request.method !== "HEAD")) {
-    response.writeHead(405, { Allow: "GET, HEAD" }).end();
+  if (!request.url) {
+    response.writeHead(400).end();
     return;
   }
   if (request.url.startsWith("/api/")) {
+    const apiMethods = new Set(["GET", "HEAD", "POST", "PUT", "DELETE"]);
+    if (!request.method || !apiMethods.has(request.method)) {
+      response.writeHead(405, { Allow: [...apiMethods].join(", ") }).end();
+      return;
+    }
     const upstream = httpRequest(
       {
         hostname: "127.0.0.1",
@@ -51,6 +56,10 @@ const server = createServer(async (request, response) => {
     );
     upstream.once("error", () => response.writeHead(502).end("Local API unavailable"));
     request.pipe(upstream);
+    return;
+  }
+  if (request.method !== "GET" && request.method !== "HEAD") {
+    response.writeHead(405, { Allow: "GET, HEAD" }).end();
     return;
   }
   const requested = safePath(request.url);
