@@ -29,8 +29,11 @@
   },
   "dependencies": {
     "@grafana/faro-web-sdk": "^2.10.0",
+    "@grafana/faro-web-tracing": "^2.10.0",
+    "@hono/node-server": "^2.1.1",
     "abortcontroller-polyfill": "^1.7.8",
     "hls.js": "^1.7.0",
+    "hono": "^4.13.3",
     "i18next": "^26.3.6",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
@@ -38,6 +41,7 @@
     "whatwg-fetch": "^3.6.20"
   },
   "devDependencies": {
+    "@grafana/faro-rollup-plugin": "^0.11.0",
     "@testing-library/react": "16.3.0",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.17",

@@ -4,8 +4,14 @@ const sdk = vi.hoisted(() => ({
   getWebInstrumentations: vi.fn(() => []),
   initializeFaro: vi.fn(),
 }));
+const tracing = vi.hoisted(() => ({
+  TracingInstrumentation: vi.fn(function TracingInstrumentation() {
+    return { name: "@grafana/faro-web-tracing" };
+  }),
+}));
 
 vi.mock("@grafana/faro-web-sdk", () => sdk);
+vi.mock("@grafana/faro-web-tracing", () => tracing);
 
 import {
   initTelemetry,
@@ -37,10 +43,12 @@ describe("Faro telemetry adapter", () => {
     vi.unstubAllEnvs();
     sdk.getWebInstrumentations.mockReset().mockReturnValue([]);
     sdk.initializeFaro.mockReset();
+    tracing.TracingInstrumentation.mockClear();
   });
 
   it("is disabled without a collector URL and makes no requests", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch");
+    setTelemetryEnvForTests({});
 
     await initTelemetry();
     telemetryEvent("stream_requested", undefined, { cameraId: "cam-124" });
@@ -48,7 +56,28 @@ describe("Faro telemetry adapter", () => {
     expect(telemetryState()).toBe("disabled");
     expect(telemetryConfig()).toBeNull();
     expect(fetchSpy).not.toHaveBeenCalled();
+    expect(tracing.TracingInstrumentation).not.toHaveBeenCalled();
     fetchSpy.mockRestore();
+  });
+
+  it("adds privacy-bounded tracing without cross-origin propagation", async () => {
+    const faro = makeFaro();
+    sdk.initializeFaro.mockReturnValue(faro);
+    setTelemetryEnvForTests({ VITE_FARO_URL: "https://collector.example.invalid/collect" });
+
+    await initTelemetry();
+
+    const options = sdk.initializeFaro.mock.calls[0][0];
+    expect(options.ignoreUrls).toEqual(expect.arrayContaining([expect.any(RegExp)]));
+    expect(
+      options.ignoreUrls.some((pattern: RegExp) =>
+        pattern.test("http://192.168.1.10:8888/cam-124/index.m3u8"),
+      ),
+    ).toBe(true);
+    expect(options.ignoreUrls.some((pattern: RegExp) => pattern.test("/api/ptz"))).toBe(true);
+    expect(tracing.TracingInstrumentation).toHaveBeenCalledWith({
+      instrumentationOptions: { propagateTraceHeaderCorsUrls: [] },
+    });
   });
 
   it("retries a transient initialization failure with bounded backoff", async () => {

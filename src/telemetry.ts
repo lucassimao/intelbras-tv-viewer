@@ -46,6 +46,15 @@ const INIT_RETRY_DELAYS_MS = [1_000, 2_000] as const;
 const DEFAULT_APP_NAME = "intelbras-tv-viewer";
 const DEFAULT_ENVIRONMENT = "local";
 const DEFAULT_VERSION = "dev";
+// Tracing must never follow requests that can identify a camera, expose a
+// relay path, or reach the private bridge. Faro's tracing package forwards
+// these patterns to both fetch and XHR instrumentation.
+const TRACE_IGNORE_URLS = [
+  /(?:^|\/\/)(?:localhost|127\.0\.0\.1|10\.(?:\d{1,3}\.){2}\d{1,3}|192\.168\.(?:\d{1,3}\.)\d{1,3}|172\.(?:1[6-9]|2\d|3[01])\.(?:\d{1,3}\.)\d{1,3}|\[[0-9a-f:]+\])(?::\d+)?(?:\/|$)/i,
+  /(?:^|\/\/)[^/]+:8888(?:\/|$)/i,
+  /\/api\/(?:ptz|snapshots|cameras|reliability)(?:\/|$|[?#])/i,
+  /(?:^|\/)cam-[^/?#]+(?:\/|$|[?#])/i,
+];
 const SENSITIVE_KEY =
   /(?:url|uri|href|src|body|headers?|password|passwd|secret|token|credential|authorization|cookie|ip)/i;
 const URL_VALUE = /(?:[a-z][a-z\d+.-]*):\/\/[^\s"'<>]+|\/\/[^\s"'<>]+/gi;
@@ -264,8 +273,14 @@ async function initializeWithRetries(
 ) {
   for (let attempt = 0; attempt < MAX_INIT_ATTEMPTS; attempt += 1) {
     try {
-      const { getWebInstrumentations, initializeFaro } = await import("@grafana/faro-web-sdk");
+      const [{ getWebInstrumentations, initializeFaro }, { TracingInstrumentation }] =
+        await Promise.all([import("@grafana/faro-web-sdk"), import("@grafana/faro-web-tracing")]);
       if (generation !== initGeneration) return;
+      const webInstrumentations = getWebInstrumentations({
+        captureConsole: false,
+        enablePerformanceInstrumentation: false,
+        enableContentSecurityPolicyInstrumentation: false,
+      }).filter((instrumentation) => !instrumentation.name.includes("user-action"));
       const instance = initializeFaro({
         url: config.url,
         ...(config.apiKey ? { apiKey: config.apiKey } : {}),
@@ -275,14 +290,19 @@ async function initializeWithRetries(
           environment: config.environment,
         },
         // Keep capture opt-in and privacy-first. There is no session replay in
-        // this configuration, and console/user-action/request bodies/headers
-        // are disabled so custom camera names cannot become telemetry.
-        instrumentations: getWebInstrumentations({
-          captureConsole: false,
-          enablePerformanceInstrumentation: false,
-          enableContentSecurityPolicyInstrumentation: false,
-        }).filter((instrumentation) => !instrumentation.name.includes("user-action")),
+        // this configuration, and console/user-action/resource instrumentation
+        // is disabled so custom camera names cannot become telemetry.
         beforeSend,
+        ignoreUrls: TRACE_IGNORE_URLS,
+        // Do not propagate trace headers to arbitrary cross-origin resources.
+        // Private bridge/HLS requests are ignored above and never receive a
+        // camera-bearing trace context.
+        instrumentations: [
+          ...webInstrumentations,
+          new TracingInstrumentation({
+            instrumentationOptions: { propagateTraceHeaderCorsUrls: [] },
+          }),
+        ],
         trackResources: false,
         preventGlobalExposure: true,
         batching: { enabled: true, itemLimit: 20, sendTimeout: 5_000 },

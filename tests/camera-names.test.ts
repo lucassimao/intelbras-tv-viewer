@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { type ChildProcess, spawn } from "node:child_process";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { MAX_CAMERA_NAME_LENGTH, normalizeCameraName } from "../server/camera-names.ts";
+import { createCameraNamesRepository } from "../server/camera-names-repository.ts";
 
 describe("camera name validation", () => {
   it("normalizes Unicode, trims whitespace, and rejects unsafe values", () => {
@@ -137,6 +138,25 @@ describe("camera names API", () => {
     expect(notModified.headers.get("etag")).toBe(etag);
 
     await fetch(`${baseUrl}/api/snapshots/lease`, { method: "DELETE" });
+  });
+});
+
+describe("camera names repository lifecycle", () => {
+  it("fails deterministically after close without reopening SQLite", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "intelbras-tv-viewer-repository-"));
+    const databasePath = join(directory, "names.sqlite");
+    const repository = createCameraNamesRepository(databasePath, new Set(["cam-124"]));
+
+    expect(repository.getAll()).toEqual({});
+    repository.close();
+    repository.close();
+    expect(() => repository.getAll()).toThrowError("camera_names_repository_closed");
+    expect(() => repository.remove("cam-124")).toThrowError("camera_names_repository_closed");
+    expect(() => repository.upsert("cam-124", "Entrada", new Date().toISOString())).toThrowError(
+      "camera_names_repository_closed",
+    );
+
+    await rm(directory, { recursive: true, force: true });
   });
 });
 
